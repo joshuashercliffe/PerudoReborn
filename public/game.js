@@ -743,7 +743,7 @@ document.getElementById('btn-next-round').addEventListener('click', () => {
 });
 
 function showReveal(r) {
-  const { revealedDice, bid, count, bidMet, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName } = r;
+  const { revealedDice, bid, count, bidMet, isPeak, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName } = r;
 
   let playersRowHtml, bottomRowHtml;
 
@@ -824,10 +824,14 @@ function showReveal(r) {
 
   const countLine = isFaceoff ? '' :
     `<div class="reveal-count-line">There were actually <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>`;
+  const peakLine = (!isFaceoff && isPeak)
+    ? `<div class="reveal-count-line">The peak was <strong>${bid.quantity}</strong> ${FACE_NAME[bid.face]}</div>`
+    : '';
 
   document.getElementById('reveal-all-dice').innerHTML = `
     <div class="reveal-players-row">${playersRowHtml}</div>
     ${countLine}
+    ${peakLine}
     ${bottomRowHtml}`;
 
   document.getElementById('reveal-summary').innerHTML = `

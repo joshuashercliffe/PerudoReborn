@@ -309,6 +309,7 @@ function processChallenge(challenger) {
 
   const result = {
     revealedDice, bid, count, bidMet,
+    isPeak,
     isPalifico: room.isPalifico,
     isFaceoff: room.isFaceoff,
     gameMode: room.gameMode,
