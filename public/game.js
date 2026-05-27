@@ -54,10 +54,10 @@ let selFace       = 2;
 let bidHistory    = [];
 let dealGeneration = 0;
 let myAutoLiar    = false;
+let currentRoomId = null;
 
 socket.on('connect', () => {
   myId = socket.id;
-  // Attempt to rejoin an existing session (handles refresh, screen lock, network drop)
   const token = localStorage.getItem('perudoSession');
   if (token) socket.emit('rejoin', { sessionToken: token });
 });
@@ -134,6 +134,47 @@ function clientValidate(state, qty, face) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Screen: Landing
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('btn-create-game').addEventListener('click', () => {
+  socket.emit('create_room');
+});
+
+const roomCodeInput = document.getElementById('room-code-input');
+roomCodeInput.addEventListener('input', () => {
+  roomCodeInput.value = roomCodeInput.value.toUpperCase();
+});
+roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitJoinGame(); });
+document.getElementById('btn-join-game').addEventListener('click', submitJoinGame);
+
+function submitJoinGame() {
+  const code = roomCodeInput.value.trim().toUpperCase();
+  if (!code) { roomCodeInput.focus(); return; }
+  hideEl('landing-error');
+  socket.emit('join_game', { roomId: code });
+}
+
+socket.on('room_created', ({ roomId }) => {
+  currentRoomId = roomId;
+  showScreen('screen-name');
+  document.getElementById('name-input').focus();
+});
+
+socket.on('join_game_ok', ({ roomId }) => {
+  currentRoomId = roomId;
+  hideEl('landing-error');
+  showScreen('screen-name');
+  document.getElementById('name-input').focus();
+});
+
+socket.on('join_error', ({ message }) => {
+  showScreen('screen-landing');
+  const errEl = document.getElementById('landing-error');
+  errEl.textContent = message;
+  showEl('landing-error');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Screen: Name
 // ─────────────────────────────────────────────────────────────────────────────
 const nameInput = document.getElementById('name-input');
@@ -147,17 +188,12 @@ function submitName() {
   socket.emit('set_name', { name: n });
 }
 
-// Server rejected (game in progress) — show the in-session card
-socket.on('join_error', () => {
-  hideEl('name-card');
-  showEl('in-session-card');
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Lobby
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('joined_lobby', state => {
   if (state.sessionToken) localStorage.setItem('perudoSession', state.sessionToken);
+  if (state.roomId) currentRoomId = state.roomId;
   myName = state.players.find(p => p.id === myId)?.name ?? null;
   gs = state;
   showScreen('screen-lobby');
@@ -165,8 +201,9 @@ socket.on('joined_lobby', state => {
 });
 
 // ── Rejoin handlers ───────────────────────────────────────────────────────────
-socket.on('rejoined', ({ sessionToken, state, dice, phase }) => {
+socket.on('rejoined', ({ sessionToken, roomId, state, dice, phase }) => {
   localStorage.setItem('perudoSession', sessionToken);
+  if (roomId) currentRoomId = roomId;
   myId   = socket.id;
   gs     = state;
   myName = state.players.find(p => p.id === myId)?.name ?? null;
@@ -196,7 +233,7 @@ socket.on('rejoined', ({ sessionToken, state, dice, phase }) => {
 
 socket.on('rejoin_failed', () => {
   localStorage.removeItem('perudoSession');
-  showScreen('screen-name');
+  showScreen('screen-landing');
 });
 
 socket.on('lobby_update', state => {
@@ -209,12 +246,16 @@ socket.on('lobby_update', state => {
       renderLobby(state);
     } else {
       localStorage.removeItem('perudoSession');
-      showScreen('screen-name');
+      showScreen('screen-landing');
     }
   }
 });
 
 function renderLobby(state) {
+  if (currentRoomId) {
+    document.getElementById('room-code-value').textContent = currentRoomId;
+  }
+
   document.getElementById('lobby-players').innerHTML = state.players.map(p => {
     const isHost = p.id === state.host;
     const isMe   = p.id === myId;
@@ -236,6 +277,10 @@ function renderLobby(state) {
     btn.classList.toggle('active', btn.dataset.mode === state.gameMode);
   });
   document.getElementById('mode-desc').textContent = modeDescs[state.gameMode] ?? '';
+
+  const varBtn = document.getElementById('btn-variable');
+  varBtn.dataset.active = state.isVariable ? 'true' : 'false';
+  varBtn.classList.toggle('active', !!state.isVariable);
 
   const startBtn  = document.getElementById('btn-start');
   const hint      = document.getElementById('start-hint');
@@ -262,6 +307,16 @@ document.getElementById('mode-btns').addEventListener('click', e => {
   const btn = e.target.closest('.mode-btn');
   if (!btn) return;
   socket.emit('set_mode', { mode: btn.dataset.mode });
+});
+
+document.getElementById('btn-copy-code').addEventListener('click', () => {
+  if (!currentRoomId) return;
+  navigator.clipboard?.writeText(currentRoomId).then(() => toast('Code copied!', 'ok'));
+});
+
+document.getElementById('btn-variable').addEventListener('click', function() {
+  const newVal = this.dataset.active !== 'true';
+  socket.emit('set_variable', { value: newVal });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -730,6 +785,9 @@ function showPeakOverlay(challengerName) {
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('challenge_result', result => {
   hideEl('action-ui');
+  hideEl('liar-overlay');
+  hideEl('peak-overlay');
+  hideEl('woah-overlay');
   showReveal(result);
 });
 
@@ -743,7 +801,7 @@ document.getElementById('btn-next-round').addEventListener('click', () => {
 });
 
 function showReveal(r) {
-  const { revealedDice, bid, count, bidMet, isPeak, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName } = r;
+  const { revealedDice, bid, count, bidMet, isPeak, diceDelta, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName } = r;
 
   let playersRowHtml, bottomRowHtml;
 
@@ -814,13 +872,17 @@ function showReveal(r) {
   ];
   const loserLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
 
+  const diceWord = (diceDelta ?? 1) === 1 ? 'die' : 'dice';
+  const diceLossText = gameMode === 'reverse'
+    ? ` — gains ${diceDelta ?? 1} ${diceWord}`
+    : ` — loses ${diceDelta ?? 1} ${diceWord}`;
   const outcomeText = isFaceoff
     ? (bidMet
         ? `✗ Call unsuccessful — sum is ${count} ≥ ${bid.quantity}, <strong>${esc(challengerName)}</strong> loses`
         : `✓ Call successful — sum is ${count}, bid was ${bid.quantity}, <strong>${esc(bidderName)}</strong> loses`)
     : (bidMet
-        ? `✗ Call unsuccessful — <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
-        : `✓ Call successful — <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`);
+        ? `✗ Call unsuccessful — <strong>${esc(challengerName)}</strong>${diceLossText}`
+        : `✓ Call successful — <strong>${esc(bidderName)}</strong>${diceLossText}`);
 
   const countLine = isFaceoff ? '' :
     `<div class="reveal-count-line">There were actually <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>`;
@@ -845,7 +907,11 @@ function showReveal(r) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Elimination
 // ─────────────────────────────────────────────────────────────────────────────
-socket.on('player_eliminated', ({ playerName, reason }) => {
+socket.on('player_eliminated', ({ playerId, playerName, reason }) => {
+  if (playerId === myId) {
+    myDice = [];
+    renderReactionButtons();
+  }
   if (reason === 'disconnect') {
     const disconnectQuips = [
       `${playerName} lagged out of reality`,
@@ -952,13 +1018,15 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
 
 socket.on('game_reset', () => {
   localStorage.removeItem('perudoSession');
-  myName     = null;
-  myDice     = [];
-  gs         = null;
-  bidHistory = [];
-  myAutoLiar = false;
+  myName        = null;
+  myDice        = [];
+  gs            = null;
+  bidHistory    = [];
+  myAutoLiar    = false;
+  currentRoomId = null;
   document.getElementById('name-input').value = '';
-  showScreen('screen-name');
+  document.getElementById('room-code-input').value = '';
+  showScreen('screen-landing');
 });
 
 // ── End Game / Rage Quit ──────────────────────────────────────────────────────
@@ -979,13 +1047,13 @@ document.getElementById('btn-ragequit-yes').addEventListener('click', () => {
 socket.on('player_disconnected', ({ playerName, gameState: state }) => {
   if (state) gs = state;
   toast(`${playerName} has disconnected`, 'warn');
-  if (gs?.phase === 'playing') renderGame();
+  if (gs?.phase === 'playing' || gs?.phase === 'reveal') renderGame();
 });
 
 socket.on('player_reconnected', ({ playerName, gameState: state }) => {
   if (state) gs = state;
   toast(`${playerName} reconnected`, 'ok');
-  if (gs?.phase === 'playing') renderGame();
+  if (gs?.phase === 'playing' || gs?.phase === 'reveal') renderGame();
 });
 
 socket.on('disconnect', () => toast('Connection lost — reconnecting…', 'warn'));

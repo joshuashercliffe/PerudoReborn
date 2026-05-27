@@ -129,10 +129,10 @@
   <div id="toast-container"></div>
 
   <!-- ═══════════════════════════════════════ -->
-  <!-- SCREEN: Name entry                      -->
+  <!-- SCREEN: Landing                          -->
   <!-- ═══════════════════════════════════════ -->
-  <div id="screen-name" class="screen active">
-    <div class="card" id="name-card">
+  <div id="screen-landing" class="screen active">
+    <div class="card">
       <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
           <polygon points="20,15 70,15 92,28 42,28" fill="#23233d"/>
           <polygon points="70,15 92,28 92,78 70,86" fill="#0f0f24"/>
@@ -145,28 +145,29 @@
           <circle cx="81" cy="43" r="3" fill="#e94560"/>
           <circle cx="81" cy="64" r="3" fill="#e94560"/>
         </svg></div>
-      <h1>Perudo Bot</h1>
-      <p class="tagline">REBORN</p>
-      <input id="name-input" type="text" placeholder="Enter your name to join…" maxlength="20"
+      <h1>Perudo</h1>
+      <p class="tagline">LIAR'S DICE</p>
+      <button id="btn-create-game" class="btn btn-primary">Create Game</button>
+      <div class="landing-divider">— or —</div>
+      <div id="join-game-row">
+        <input id="room-code-input" type="text" placeholder="Game code" maxlength="6"
+               autocomplete="off" spellcheck="false" style="text-transform:uppercase">
+        <button id="btn-join-game" class="btn btn-secondary">Join</button>
+      </div>
+      <p id="landing-error" class="error-msg hidden"></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- SCREEN: Name entry                      -->
+  <!-- ═══════════════════════════════════════ -->
+  <div id="screen-name" class="screen">
+    <div class="card">
+      <h2>Enter Your Name</h2>
+      <input id="name-input" type="text" placeholder="Your name…" maxlength="20"
              autocomplete="off" spellcheck="false">
       <button id="name-submit" class="btn btn-primary">Join Lobby →</button>
       <p id="name-error" class="error-msg hidden"></p>
-    </div>
-    <div class="card hidden" id="in-session-card">
-      <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
-          <polygon points="20,15 70,15 92,28 42,28" fill="#23233d"/>
-          <polygon points="70,15 92,28 92,78 70,86" fill="#0f0f24"/>
-          <rect x="4" y="28" width="66" height="58" rx="11" fill="#f5f5f5"/>
-          <circle cx="24" cy="47" r="7" fill="#1a1a2e"/>
-          <circle cx="54" cy="47" r="7" fill="#1a1a2e"/>
-          <path d="M18 64 Q39 81 60 64" stroke="#1a1a2e" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <circle cx="56" cy="20" r="3" fill="#e94560"/>
-          <circle cx="74" cy="20" r="3" fill="#e94560"/>
-          <circle cx="81" cy="43" r="3" fill="#e94560"/>
-          <circle cx="81" cy="64" r="3" fill="#e94560"/>
-        </svg></div>
-      <h1 style="font-size:1.6rem">Game in Session</h1>
-      <p class="tagline" style="margin-bottom:0">You snooze you lose</p>
     </div>
   </div>
 
@@ -176,7 +177,11 @@
   <div id="screen-lobby" class="screen">
     <div class="card">
       <h2>Lobby</h2>
-      <p class="lobby-hint">Waiting for players — share this page to invite friends!</p>
+      <div id="room-code-display">
+        Code: <span id="room-code-value"></span>
+        <button id="btn-copy-code" class="btn-copy-code" title="Copy code">Copy</button>
+      </div>
+      <p class="lobby-hint">Share the code to invite friends!</p>
       <div id="lobby-players"></div>
 
       <div id="mode-selector">
@@ -186,6 +191,12 @@
           <button class="mode-btn" data-mode="reverse">🔄 Reverse</button>
         </div>
         <p id="mode-desc" class="muted-msg" style="text-align:center;margin-top:8px;font-size:.8rem"></p>
+      </div>
+
+      <div id="variable-section">
+        <div class="section-label" style="margin-bottom:8px">Options</div>
+        <button id="btn-variable" class="option-toggle-btn" data-active="false">📊 Variable Mode</button>
+        <p id="variable-desc" class="muted-msg" style="text-align:center;margin-top:6px;font-size:.8rem">Lose/gain dice equal to how wrong the bid was</p>
       </div>
 
       <button id="btn-start" class="btn btn-primary hidden">Start Game</button>

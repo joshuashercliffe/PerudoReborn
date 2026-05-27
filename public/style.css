@@ -100,7 +100,27 @@ input[type="text"]::placeholder { color: var(--muted); }
 
 .hidden { display: none !important; }
 
+/* ── Landing Screen ──────────────────────────────────────────────────── */
+.landing-divider { color: var(--muted); font-size: .8rem; margin: 14px 0; }
+#join-game-row { display: flex; gap: 8px; align-items: flex-start; }
+#join-game-row input { margin-bottom: 0; flex: 1; text-align: center; letter-spacing: 3px; font-weight: 700; font-size: 1.1rem; }
+#join-game-row .btn { width: auto; padding: 13px 20px; margin-top: 0; flex-shrink: 0; }
+
 /* ── Lobby Screen ────────────────────────────────────────────────────── */
+#room-code-display {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: .78rem; color: var(--muted); letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+#room-code-value { font-weight: 900; font-size: 1.1rem; letter-spacing: 4px; color: var(--text); }
+.btn-copy-code {
+  background: rgba(255,255,255,.07); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: .7rem; font-weight: 700; padding: 3px 10px;
+  cursor: pointer; touch-action: manipulation;
+  transition: background .15s, color .15s;
+}
+.btn-copy-code:hover { background: rgba(255,255,255,.14); color: var(--text); }
 .lobby-hint { color: var(--muted); font-size: .85rem; margin-bottom: 20px; }
 #lobby-players { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
 .lobby-player {
@@ -550,6 +570,17 @@ input[type="text"]::placeholder { color: var(--muted); }
 /* ── Mode Selector (lobby) ───────────────────────────────────────────── */
 #mode-selector { margin: 16px 0 8px; }
 #mode-btns { display: flex; gap: 8px; }
+#variable-section { margin: 12px 0 8px; }
+.option-toggle-btn {
+  display: block; width: 100%; text-align: center;
+  background: rgba(255,255,255,.04); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 10px;
+  font-size: .85rem; font-weight: 600; padding: 9px 18px;
+  cursor: pointer; touch-action: manipulation;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.option-toggle-btn:hover { border-color: var(--muted); color: var(--text); }
+.option-toggle-btn.active { border-color: var(--accent); background: rgba(233,69,96,.12); color: var(--text); }
 .mode-btn {
   flex: 1; padding: 10px 14px; font-size: .88rem; font-weight: 600;
   background: rgba(255,255,255,.05); border: 2px solid var(--border);
