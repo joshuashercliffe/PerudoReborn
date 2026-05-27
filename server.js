@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -27,6 +28,9 @@ const room = {
   palificoTriggerPlayer: null,
   roundNumber: 0
 };
+
+// sessionToken -> socketId  (for reconnection)
+const sessions = {};
 
 // ─────────────────────────────────────────
 // Helpers
@@ -148,6 +152,47 @@ function startRound() {
 
 io.on('connection', socket => {
 
+  // ── Rejoin with session token ─────────
+  socket.on('rejoin', ({ sessionToken }) => {
+    const oldSocketId = sessions[sessionToken];
+    if (!oldSocketId) { socket.emit('rejoin_failed'); return; }
+
+    const idx = room.players.findIndex(p => p.id === oldSocketId);
+    if (idx === -1) {
+      // Player was eliminated or never made it in — clear stale session
+      delete sessions[sessionToken];
+      socket.emit('rejoin_failed');
+      return;
+    }
+
+    const player = room.players[idx];
+
+    // Cancel pending elimination timer
+    if (player.disconnectTimer) {
+      clearTimeout(player.disconnectTimer);
+      player.disconnectTimer = null;
+    }
+
+    // Swap in new socket
+    sessions[sessionToken] = socket.id;
+    player.id = socket.id;
+    player.connected = true;
+    socket.playerName = player.name;
+    socket.join(ROOM);
+
+    socket.emit('rejoined', {
+      sessionToken,
+      state: publicState(),
+      dice: player.dice,
+      phase: room.phase
+    });
+
+    socket.to(ROOM).emit('player_reconnected', {
+      playerName: player.name,
+      gameState: publicState()
+    });
+  });
+
   // ── Join lobby ────────────────────────
   socket.on('set_name', ({ name }) => {
     const n = String(name ?? '').trim().slice(0, 20);
@@ -163,12 +208,14 @@ io.on('connection', socket => {
     while (room.players.find(p => p.name === finalName)) finalName += '_';
     socket.playerName = finalName;
 
+    const token = crypto.randomUUID();
     const player = { id: socket.id, name: finalName, diceCount: 5, dice: [], connected: true };
+    sessions[token] = socket.id;
     room.players.push(player);
     if (room.players.length === 1) room.host = socket.id;
 
     socket.join(ROOM);
-    socket.emit('joined_lobby', publicState());
+    socket.emit('joined_lobby', { ...publicState(), sessionToken: token });
     socket.to(ROOM).emit('lobby_update', publicState());
   });
 
@@ -306,11 +353,12 @@ io.on('connection', socket => {
       if (wasHost && room.players.length > 0) room.host = room.players[0].id;
       io.to(ROOM).emit('lobby_update', publicState());
     } else {
-      // Mark disconnected; auto-remove after 8s if they don't reconnect
+      // Mark disconnected; give 60s to reconnect before eliminating
       player.connected = false;
       io.to(ROOM).emit('player_disconnected', { playerName: player.name, gameState: publicState() });
 
-      setTimeout(() => {
+      player.disconnectTimer = setTimeout(() => {
+        // If player reconnected, their id changed — findIndex will return -1, so we bail
         const stillIdx = room.players.findIndex(p => p.id === socket.id);
         if (stillIdx === -1 || room.players[stillIdx].connected) return;
 
@@ -331,7 +379,7 @@ io.on('connection', socket => {
           room.roundNumber++;
           setTimeout(() => startRound(), 1000);
         }
-      }, 8000);
+      }, 60000);
     }
   });
 });

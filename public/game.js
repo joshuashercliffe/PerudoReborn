@@ -32,8 +32,12 @@ let myDice  = [];
 let selQty  = 1;
 let selFace = 2;
 
-socket.on('connect',   () => { myId = socket.id; });
-socket.on('reconnect', () => { myId = socket.id; });
+socket.on('connect', () => {
+  myId = socket.id;
+  // Attempt to rejoin an existing session (handles refresh, screen lock, network drop)
+  const token = localStorage.getItem('perudoSession');
+  if (token) socket.emit('rejoin', { sessionToken: token });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utility
@@ -117,10 +121,38 @@ socket.on('join_error', ({ message }) => {
 // Lobby
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('joined_lobby', state => {
-  myName = socket.playerName; // may be undefined; we rely on state
+  if (state.sessionToken) localStorage.setItem('perudoSession', state.sessionToken);
+  myName = state.players.find(p => p.id === myId)?.name ?? null;
   gs = state;
   showScreen('screen-lobby');
   renderLobby(state);
+});
+
+// ── Rejoin handlers ───────────────────────────────────────────────────────────
+socket.on('rejoined', ({ sessionToken, state, dice, phase }) => {
+  localStorage.setItem('perudoSession', sessionToken);
+  myId   = socket.id;
+  gs     = state;
+  myName = state.players.find(p => p.id === myId)?.name ?? null;
+  myDice = dice || [];
+
+  if (phase === 'lobby') {
+    showScreen('screen-lobby');
+    renderLobby(state);
+  } else if (phase === 'over') {
+    document.getElementById('winner-name').textContent = state.players[0]?.name ?? '';
+    showScreen('screen-over');
+  } else {
+    // playing or reveal — drop them back into the game view
+    showScreen('screen-game');
+    renderGame();
+  }
+  toast('Reconnected!', 'ok');
+});
+
+socket.on('rejoin_failed', () => {
+  localStorage.removeItem('perudoSession');
+  showScreen('screen-name');
 });
 
 socket.on('lobby_update', state => {
@@ -440,9 +472,14 @@ socket.on('lobby_update', state => {
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('player_disconnected', ({ playerName, gameState: state }) => {
   if (state) gs = state;
-  toast(`${playerName} disconnected`, 'warn');
+  toast(`${playerName} disconnected — waiting 60s`, 'warn');
   if (gs?.phase === 'playing') renderGame();
 });
 
-socket.on('disconnect', () => toast('Disconnected from server…', 'error'));
-socket.on('reconnect',  () => toast('Reconnected!', 'ok'));
+socket.on('player_reconnected', ({ playerName, gameState: state }) => {
+  if (state) gs = state;
+  toast(`${playerName} reconnected`, 'ok');
+  if (gs?.phase === 'playing') renderGame();
+});
+
+socket.on('disconnect', () => toast('Connection lost — reconnecting…', 'warn'));

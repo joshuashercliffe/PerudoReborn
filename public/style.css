@@ -222,12 +222,11 @@ input[type="text"]::placeholder { color: var(--muted); }
 .dot {
   background: var(--dot-color);
   border-radius: 50%;
-  width: 100%;
-  aspect-ratio: 1;
-  align-self: center;
-  justify-self: center;
+  width: 76%;
+  height: 76%;
+  margin: auto;
 }
-.dot.empty { background: transparent; }
+.dot.empty { visibility: hidden; }
 
 /* ── Action UI ───────────────────────────────────────────────────────── */
 #action-ui {
