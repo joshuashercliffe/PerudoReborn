@@ -910,15 +910,19 @@ socket.on('game_over', ({ winner, reason, quitterName }) => {
 });
 
 document.getElementById('btn-play-again').addEventListener('click', () => {
+  socket.emit('leave_room');
+  // game_reset event from server will redirect everyone including us
+});
+
+socket.on('game_reset', () => {
   localStorage.removeItem('perudoSession');
-  myName = null;
-  myDice = [];
-  gs     = null;
+  myName     = null;
+  myDice     = [];
+  gs         = null;
   bidHistory = [];
   myAutoLiar = false;
   document.getElementById('name-input').value = '';
   showScreen('screen-name');
-  socket.emit('leave_room');
 });
 
 // ── End Game / Rage Quit ──────────────────────────────────────────────────────

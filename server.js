@@ -507,21 +507,18 @@ io.on('connection', socket => {
     startRound();
   });
 
-  // ── Leave room (play again → name screen) ────────
+  // ── Leave room (play again → everyone back to name entry) ────────────
   socket.on('leave_room', () => {
-    const idx = room.players.findIndex(p => p.id === socket.id);
-    if (idx !== -1) room.players.splice(idx, 1);
-    socket.leave(ROOM);
-    // Clean up session token
-    const token = Object.keys(sessions).find(t => sessions[t] === socket.id);
-    if (token) delete sessions[token];
-
-    if (room.players.length === 0) {
-      resetToLobby();
-    } else {
-      if (room.phase === 'over') resetToLobby();
-      io.to(ROOM).emit('lobby_update', publicState());
-    }
+    // Send every connected player back to the name screen
+    io.to(ROOM).emit('game_reset');
+    // Clear all sessions so stale rejoin tokens don't work
+    Object.keys(sessions).forEach(t => delete sessions[t]);
+    // Cancel disconnect timers and wipe the room
+    room.players.forEach(p => {
+      if (p.disconnectTimer) { clearTimeout(p.disconnectTimer); p.disconnectTimer = null; }
+    });
+    room.players = [];
+    resetToLobby();
   });
 
   // ── Disconnect ────────────────────────
