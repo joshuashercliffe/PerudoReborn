@@ -175,10 +175,13 @@ function startRound() {
 
   room.players.forEach(p => {
     p.dice = roll(p.diceCount);
-    io.to(p.id).emit('your_dice', { dice: p.dice });
   });
 
   io.to(ROOM).emit('round_start', publicState());
+
+  room.players.forEach(p => {
+    io.to(p.id).emit('your_dice', { dice: p.dice });
+  });
 }
 
 // ─────────────────────────────────────────

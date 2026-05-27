@@ -34,13 +34,14 @@ function makeColoredDie(value, color, extraClass = '') {
 }
 
 // Client state
-let myId        = null;
-let myName      = null;
-let gs          = null;
-let myDice      = [];
-let selQty      = 1;
-let selFace     = 2;
-let bidHistory  = [];
+let myId          = null;
+let myName        = null;
+let gs            = null;
+let myDice        = [];
+let selQty        = 1;
+let selFace       = 2;
+let bidHistory    = [];
+let dealGeneration = 0;
 
 socket.on('connect', () => {
   myId = socket.id;
@@ -174,6 +175,7 @@ socket.on('rejoined', ({ sessionToken, state, dice, phase }) => {
     showScreen('screen-over');
   } else {
     // playing or reveal — drop them back into the game view
+    if (phase === 'playing') hideEl('reveal-overlay');
     showScreen('screen-game');
     renderGame();
   }
@@ -429,11 +431,13 @@ function renderBidHistory() {
 }
 
 function renderMyDice() {
+  dealGeneration++; // cancel any in-progress deal animation
   document.getElementById('my-dice').innerHTML =
     [...myDice].sort((a, b) => a - b).map(d => makeDie(d)).join('');
 }
 
 function dealMyDice() {
+  const gen = ++dealGeneration;
   const container = document.getElementById('my-dice');
   const finalDice = [...myDice].sort((a, b) => a - b);
   if (!finalDice.length) { container.innerHTML = ''; return; }
@@ -442,6 +446,7 @@ function dealMyDice() {
   const shuffleTicks = 6;
 
   function tick() {
+    if (gen !== dealGeneration) return; // superseded by renderMyDice or a newer deal
     if (ticks < shuffleTicks) {
       container.innerHTML = finalDice
         .map(() => makeDie(Math.floor(Math.random() * 6) + 1, 'die-rolling'))

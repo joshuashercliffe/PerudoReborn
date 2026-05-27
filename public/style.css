@@ -314,7 +314,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 #reveal-all-dice { margin-bottom: 20px; }
 .reveal-players-row {
   display: flex; flex-wrap: wrap; align-items: flex-end;
-  gap: 0 6px; margin-bottom: 12px;
+  gap: 0 3px; margin-bottom: 12px;
 }
 .reveal-player-section { display: flex; flex-direction: column; }
 .reveal-player-name {
