@@ -495,6 +495,28 @@ io.on('connection', socket => {
     io.to(roomId).emit('lobby_update', publicState(room));
   });
 
+  // ── Leave lobby individually ───────────
+  socket.on('leave_lobby', () => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'lobby') return;
+    const idx = room.players.findIndex(p => p.id === socket.id);
+    if (idx === -1) return;
+    Object.keys(sessions).forEach(t => {
+      if (sessions[t].socketId === socket.id) delete sessions[t];
+    });
+    room.players.splice(idx, 1);
+    socketToRoom.delete(socket.id);
+    socket.leave(roomId);
+    socket.emit('game_reset');
+    if (room.players.length === 0) {
+      rooms.delete(roomId);
+    } else {
+      if (room.host === socket.id) room.host = room.players[0].id;
+      io.to(roomId).emit('lobby_update', publicState(room));
+    }
+  });
+
   // ── Start game ────────────────────────
   socket.on('start_game', () => {
     const ctx = getRoom(); if (!ctx) return;
@@ -604,45 +626,6 @@ io.on('connection', socket => {
     const { roomId } = ctx;
     if (!['fire', 'ice'].includes(type)) return;
     io.to(roomId).emit('reaction', { type });
-  });
-
-  // ── Play again (return to lobby individually) ────
-  socket.on('play_again', () => {
-    const ctx = getRoom(); if (!ctx) return;
-    const { room, roomId } = ctx;
-
-    const p = room.players.find(pl => pl.id === socket.id);
-    if (!p) {
-      // Not in the room (e.g., rage-quitter) — send them to landing
-      socketToRoom.delete(socket.id);
-      socket.emit('game_reset');
-      return;
-    }
-
-    if (room.phase !== 'over' && room.phase !== 'lobby') return;
-
-    if (room.phase === 'over') {
-      room.phase = 'lobby';
-      room.currentBid = null;
-      room.firstBidOfRound = true;
-      room.isPalifico = false;
-      room.isFaceoff = false;
-      room.palificoFace = null;
-      room.palificoTriggerPlayer = null;
-      room.currentPlayerIndex = 0;
-      room.lastBidderIndex = -1;
-      room.roundNumber = 0;
-      room.autoLiarPlayerId = null;
-      const startDice = room.gameMode === 'reverse' ? 1 : 5;
-      room.players.forEach(pl => { pl.diceCount = startDice; pl.dice = []; });
-      if (room.players.length > 0 && !room.players.find(pl => pl.id === room.host)) {
-        room.host = room.players[0].id;
-      }
-    }
-
-    const token = Object.keys(sessions).find(t => sessions[t].socketId === socket.id) ?? null;
-    socket.emit('joined_lobby', { ...publicState(room), sessionToken: token, roomId });
-    socket.to(roomId).emit('lobby_update', publicState(room));
   });
 
   // ── Leave room (back to landing) ──────

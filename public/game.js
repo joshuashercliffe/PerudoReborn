@@ -241,11 +241,13 @@ socket.on('lobby_update', state => {
   if (document.getElementById('screen-lobby').classList.contains('active')) {
     renderLobby(state);
   } else if (document.getElementById('screen-over').classList.contains('active')) {
-    if (!state.players.some(p => p.id === myId)) {
+    if (state.players.some(p => p.id === myId)) {
+      showScreen('screen-lobby');
+      renderLobby(state);
+    } else {
       localStorage.removeItem('perudoSession');
       showScreen('screen-landing');
     }
-    // Otherwise stay on game-over — player returns to lobby via Play Again
   }
 });
 
@@ -299,6 +301,7 @@ function renderLobby(state) {
 }
 
 document.getElementById('btn-start').addEventListener('click', () => socket.emit('start_game'));
+document.getElementById('btn-leave-lobby').addEventListener('click', () => socket.emit('leave_lobby'));
 socket.on('start_error', ({ message }) => toast(message, 'error'));
 
 document.getElementById('mode-btns').addEventListener('click', e => {
@@ -1010,7 +1013,7 @@ socket.on('game_over', ({ winner, reason, quitterName }) => {
 });
 
 document.getElementById('btn-play-again').addEventListener('click', () => {
-  socket.emit('play_again');
+  socket.emit('leave_room');
 });
 
 socket.on('game_reset', () => {
