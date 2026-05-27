@@ -86,6 +86,33 @@
     <div id="faceoff-sub"></div>
   </div>
 
+  <!-- PEAK overlay -->
+  <div id="peak-overlay" class="hidden">
+    <div id="peak-mountain">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="240" height="160">
+        <circle cx="25" cy="22" r="2" fill="white" opacity="0.9"/>
+        <circle cx="275" cy="18" r="2" fill="white" opacity="0.9"/>
+        <circle cx="55" cy="50" r="1.5" fill="white" opacity="0.7"/>
+        <circle cx="250" cy="46" r="1.5" fill="white" opacity="0.7"/>
+        <circle cx="195" cy="8" r="1.5" fill="white" opacity="0.8"/>
+        <circle cx="108" cy="6" r="1.5" fill="white" opacity="0.8"/>
+        <polygon points="0,200 75,78 150,200" fill="#1a3a5c"/>
+        <polygon points="150,200 228,62 300,200" fill="#1a3a5c"/>
+        <polygon points="55,200 150,12 245,200" fill="#2d5a8e"/>
+        <polygon points="108,74 150,12 192,74 178,52 165,30 150,16 135,30 122,52" fill="#dce9ff"/>
+        <path d="M97 90 Q114 74 128 69" fill="none" stroke="#b0c8f0" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
+        <path d="M80 112 Q100 94 118 88" fill="none" stroke="#b0c8f0" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+        <path d="M203 90 Q186 74 172 69" fill="none" stroke="#b0c8f0" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
+        <path d="M220 112 Q200 94 182 88" fill="none" stroke="#b0c8f0" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+        <circle cx="134" cy="32" r="1.5" fill="white" opacity="0.7"/>
+        <circle cx="168" cy="29" r="1.5" fill="white" opacity="0.7"/>
+        <circle cx="150" cy="42" r="1" fill="white" opacity="0.6"/>
+      </svg>
+    </div>
+    <div id="peak-title">PEAKED</div>
+    <div id="peak-sub"></div>
+  </div>
+
   <!-- PALIFICO overlay -->
   <div id="palifico-overlay" class="hidden">
     <div id="palifico-text">PALIFICO!</div>
@@ -221,6 +248,11 @@
           <button id="btn-challenge" class="btn btn-danger" disabled>Liar</button>
           <button id="btn-bid" class="btn btn-success" disabled>Make Bid</button>
         </div>
+      </div>
+
+      <!-- Autoliar — visible when not your turn -->
+      <div id="autoliar-section" class="hidden">
+        <button id="btn-autoliar" class="btn btn-autoliar">🔒 Lock in Autoliar</button>
       </div>
 
       <!-- Bid history — collapsed by default -->

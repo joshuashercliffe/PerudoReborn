@@ -53,6 +53,7 @@ let selQty        = 1;
 let selFace       = 2;
 let bidHistory    = [];
 let dealGeneration = 0;
+let myAutoLiar    = false;
 
 socket.on('connect', () => {
   myId = socket.id;
@@ -287,6 +288,7 @@ socket.on('round_start', state => {
   gs = state;
   myDice = [];
   bidHistory = [];
+  myAutoLiar = (state.autoLiarPlayerId === myId);
   hideEl('reveal-overlay');
   showScreen('screen-game');
   renderGame();
@@ -340,6 +342,7 @@ function renderGame() {
   renderStatus();
   renderMyDice();
   renderActionUI();
+  renderAutoLiarBtn();
 }
 
 function renderPlayersBar() {
@@ -478,8 +481,20 @@ function dealMyDice() {
   const cubes = [...container.querySelectorAll('.die3')];
   const wraps = [...container.querySelectorAll('.die3-wrap')];
 
-  // Instant random starting position (no transition)
-  cubes.forEach(c => { c.style.transition = 'none'; c.style.transform = randomTumble(); });
+  // Each die gets its own random spin axis/direction
+  const spinFns = [
+    n => `rotateY(${n}deg)`,
+    n => `rotateY(${-n}deg)`,
+    n => `rotateX(${n}deg)`,
+    n => `rotateX(${-n}deg)`,
+    n => `rotateZ(${n}deg)`,
+    n => `rotateZ(${-n}deg)`,
+  ];
+  const dieSpins = cubes.map(() => spinFns[Math.floor(Math.random() * spinFns.length)]);
+  let angle = 0;
+
+  // Instant start position (no transition)
+  cubes.forEach((c, i) => { c.style.transition = 'none'; c.style.transform = dieSpins[i](0); });
 
   let ticks = 0;
   const shuffleTicks = 5;
@@ -487,9 +502,10 @@ function dealMyDice() {
   function tick() {
     if (gen !== dealGeneration) return;
     if (ticks < shuffleTicks) {
-      cubes.forEach(c => {
-        c.style.transition = 'transform 180ms ease-in-out';
-        c.style.transform = randomTumble();
+      angle += 108;
+      cubes.forEach((c, i) => {
+        c.style.transition = 'transform 180ms linear';
+        c.style.transform = dieSpins[i](angle);
       });
       ticks++;
       setTimeout(tick, 200);
@@ -511,6 +527,25 @@ function dealMyDice() {
     if (gen !== dealGeneration) return;
     tick();
   }));
+}
+
+function renderAutoLiarBtn() {
+  const isMyTurn = gs.currentPlayerId === myId;
+  const isPlaying = gs.phase === 'playing';
+  // Show autoliar when playing and it's NOT my turn (can't lock in on your own turn)
+  if (isPlaying && !isMyTurn && !gs.isFaceoff) {
+    showEl('autoliar-section');
+    const btn = document.getElementById('btn-autoliar');
+    if (myAutoLiar) {
+      btn.textContent = '✓ AUTOLIAR LOCKED';
+      btn.classList.add('autoliar-locked');
+    } else {
+      btn.textContent = '🔒 Lock in Autoliar';
+      btn.classList.remove('autoliar-locked');
+    }
+  } else {
+    hideEl('autoliar-section');
+  }
 }
 
 function renderActionUI() {
@@ -582,6 +617,10 @@ document.getElementById('btn-challenge').addEventListener('click', () => {
   socket.emit('challenge');
 });
 
+document.getElementById('btn-autoliar').addEventListener('click', () => {
+  socket.emit('auto_liar');
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Wild opening bid — WOAH overlay
 // ─────────────────────────────────────────────────────────────────────────────
@@ -627,6 +666,7 @@ function showWoahOverlay(aboveBy) {
 socket.on('bid_made', ({ bid, bidderName, gameState: state }) => {
   const wasFirstBid = gs.firstBidOfRound;
   gs = state;
+  myAutoLiar = (state.autoLiarPlayerId === myId);
   bidHistory.push({ type: 'bid', name: bidderName, qty: bid.quantity, face: bid.face });
   renderGame();
   renderBidHistory();
@@ -652,20 +692,36 @@ socket.on('bid_error', ({ message }) => toast(message, 'error'));
 // ─────────────────────────────────────────────────────────────────────────────
 // LIAR called — show dramatic overlay for ~1.2s before reveal
 // ─────────────────────────────────────────────────────────────────────────────
-socket.on('liar_called', ({ challengerName }) => {
+socket.on('liar_called', ({ challengerName, isPeak }) => {
   bidHistory.push({ type: 'liar', name: challengerName });
+
+  if (isPeak) {
+    showPeakOverlay(challengerName);
+    return;
+  }
+
   const overlay = document.getElementById('liar-overlay');
   document.getElementById('liar-caller').textContent = `${challengerName} called it!`;
-
-  // Force re-trigger animation by replacing element
   const liarText = document.getElementById('liar-text');
   liarText.style.animation = 'none';
-  void liarText.offsetWidth; // reflow
+  void liarText.offsetWidth;
   liarText.style.animation = '';
-
   showEl(overlay);
   setTimeout(() => hideEl(overlay), 1800);
 });
+
+function showPeakOverlay(challengerName) {
+  const overlay = document.getElementById('peak-overlay');
+  document.getElementById('peak-sub').textContent = `${challengerName} just got PEAKED`;
+  ['peak-mountain', 'peak-title', 'peak-sub'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
+  showEl(overlay);
+  setTimeout(() => hideEl(overlay), 3500);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Challenge reveal
@@ -764,8 +820,12 @@ function showReveal(r) {
         ? `✗ Call unsuccessful — <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
         : `✓ Call successful — <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`);
 
+  const countLine = isFaceoff ? '' :
+    `<div class="reveal-count-line">Found <strong>${count}</strong> matching ${count === 1 ? 'die' : 'dice'}</div>`;
+
   document.getElementById('reveal-all-dice').innerHTML = `
     <div class="reveal-players-row">${playersRowHtml}</div>
+    ${countLine}
     ${bottomRowHtml}`;
 
   document.getElementById('reveal-summary').innerHTML = `
@@ -829,8 +889,22 @@ function animateElimination(name) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Game over
 // ─────────────────────────────────────────────────────────────────────────────
+socket.on('auto_liar_update', ({ playerId, playerName, active }) => {
+  if (playerId === myId) {
+    myAutoLiar = active;
+    if (gs) renderAutoLiarBtn();
+  }
+  if (active) {
+    toast(`${playerName} has locked in AUTOLIAR`, 'autoliar');
+  } else {
+    toast(`${playerName} cancelled Autoliar`);
+  }
+});
+
 socket.on('game_over', ({ winner, reason, quitterName }) => {
   hideEl('reveal-overlay');
+  hideEl('ragequit-overlay');
+  myAutoLiar = false;
   const titleEl = document.getElementById('winner-title');
   const nameEl  = document.getElementById('winner-name');
 
@@ -862,6 +936,7 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
   myDice = [];
   gs     = null;
   bidHistory = [];
+  myAutoLiar = false;
   document.getElementById('name-input').value = '';
   showScreen('screen-name');
   socket.emit('leave_room');

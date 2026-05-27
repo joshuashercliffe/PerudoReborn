@@ -29,7 +29,8 @@ const room = {
   palificoFace: null,
   palificoTriggerPlayer: null,
   roundNumber: 0,
-  revealResolved: false
+  revealResolved: false,
+  autoLiarPlayerId: null
 };
 
 // sessionToken -> socketId  (for reconnection)
@@ -65,7 +66,8 @@ function publicState() {
     roundNumber: room.roundNumber,
     host: room.host,
     totalDice: room.players.reduce((s, p) => s + p.diceCount, 0),
-    gameMode: room.gameMode
+    gameMode: room.gameMode,
+  autoLiarPlayerId: room.autoLiarPlayerId
   };
 }
 
@@ -80,11 +82,34 @@ function resetToLobby() {
   room.currentPlayerIndex = 0;
   room.lastBidderIndex = -1;
   room.roundNumber = 0;
+  room.autoLiarPlayerId = null;
   const startDice = room.gameMode === 'reverse' ? 1 : 5;
   room.players.forEach(p => { p.diceCount = startDice; p.dice = []; p.connected = true; });
   if (room.players.length > 0 && !room.players.find(p => p.id === room.host)) {
     room.host = room.players[0].id;
   }
+}
+
+// ─────────────────────────────────────────
+// Peak detection
+// ─────────────────────────────────────────
+function countForFace(face, allDice) {
+  if (face === 1) return allDice.filter(d => d === 1).length;
+  return allDice.filter(d => d === face || d === 1).length;
+}
+
+function checkIsPeak(bid, allDice) {
+  if (!bid || bid.face === null) return false;
+  const matchCount = countForFace(bid.face, allDice);
+  if (matchCount !== bid.quantity) return false; // must be exactly correct
+  // Check: is there any higher valid bid that could also be truthful?
+  for (let f = bid.face + 1; f <= 6; f++) {
+    if (countForFace(f, allDice) >= bid.quantity) return false;
+  }
+  for (let f = 1; f <= 6; f++) {
+    if (countForFace(f, allDice) >= bid.quantity + 1) return false;
+  }
+  return true;
 }
 
 // ─────────────────────────────────────────
@@ -182,6 +207,112 @@ function startRound() {
   room.players.forEach(p => {
     io.to(p.id).emit('your_dice', { dice: p.dice });
   });
+}
+
+// ─────────────────────────────────────────
+// Challenge processing (shared by manual liar + autoliar)
+// ─────────────────────────────────────────
+function processChallenge(challenger) {
+  const bidder = room.players[room.lastBidderIndex];
+  if (!bidder) return;
+
+  room.phase = 'reveal';
+
+  const allDice = room.players.flatMap(p => p.dice);
+  const isPeak = !room.isFaceoff && !room.isPalifico && checkIsPeak(room.currentBid, allDice);
+
+  io.to(ROOM).emit('liar_called', { challengerName: challenger.name, isPeak });
+
+  const bid = room.currentBid;
+  let count = 0;
+  const revealedDice = room.players.map(p => {
+    const pd = { id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0 };
+    if (room.isFaceoff) {
+      count += p.dice.reduce((s, d) => s + d, 0);
+    } else {
+      p.dice.forEach(d => {
+        if (room.isPalifico) { if (d === bid.face) count++; }
+        else                  { if (d === bid.face || d === 1) count++; }
+      });
+    }
+    return pd;
+  });
+
+  const bidMet = count >= bid.quantity;
+  const loser  = bidMet ? challenger : bidder;
+
+  const result = {
+    revealedDice, bid, count, bidMet,
+    isPalifico: room.isPalifico,
+    isFaceoff: room.isFaceoff,
+    gameMode: room.gameMode,
+    bidderName: bidder.name,
+    challengerName: challenger.name,
+    loserName: loser.name,
+    loserId: loser.id
+  };
+
+  setTimeout(() => {
+    io.to(ROOM).emit('challenge_result', result);
+
+    setTimeout(() => {
+      const loserIdx = room.players.findIndex(p => p.id === loser.id);
+      if (loserIdx === -1) return;
+
+      const loserPlayer = room.players[loserIdx];
+
+      if (room.gameMode === 'reverse') {
+        loserPlayer.diceCount++;
+
+        if (loserPlayer.diceCount > 5) {
+          loserPlayer.diceCount = 0;
+          loserPlayer.dice = [];
+          if (room.autoLiarPlayerId === loserPlayer.id) room.autoLiarPlayerId = null;
+
+          io.to(ROOM).emit('player_eliminated', { playerId: loserPlayer.id, playerName: loserPlayer.name });
+          room.players.splice(loserIdx, 1);
+
+          if (room.players.length === 1) {
+            room.phase = 'over';
+            io.to(ROOM).emit('game_over', { winner: room.players[0].name });
+            return;
+          }
+
+          room.currentPlayerIndex = loserIdx % room.players.length;
+        } else {
+          room.currentPlayerIndex = loserIdx;
+        }
+      } else {
+        loserPlayer.diceCount--;
+
+        if (loserPlayer.diceCount <= 0) {
+          loserPlayer.diceCount = 0;
+          loserPlayer.dice = [];
+          if (room.autoLiarPlayerId === loserPlayer.id) room.autoLiarPlayerId = null;
+
+          io.to(ROOM).emit('player_eliminated', { playerId: loserPlayer.id, playerName: loserPlayer.name });
+          room.players.splice(loserIdx, 1);
+
+          if (room.players.length === 1) {
+            room.phase = 'over';
+            io.to(ROOM).emit('game_over', { winner: room.players[0].name });
+            return;
+          }
+
+          room.palificoTriggerPlayer = null;
+          room.currentPlayerIndex = loserIdx % room.players.length;
+        } else {
+          loserPlayer.dice = loserPlayer.dice.slice(0, loserPlayer.diceCount);
+          room.currentPlayerIndex = loserIdx;
+          if (loserPlayer.diceCount === 1) room.palificoTriggerPlayer = loserPlayer.id;
+        }
+      }
+
+      room.roundNumber++;
+      room.revealResolved = true;
+      io.to(ROOM).emit('reveal_resolved');
+    }, 4500);
+  }, 1200);
 }
 
 // ─────────────────────────────────────────
@@ -291,7 +422,11 @@ io.on('connection', socket => {
     const check = validateBid(qty, f);
     if (!check.valid) return socket.emit('bid_error', { message: check.reason });
 
-    if (room.isPalifico && room.firstBidOfRound) room.palificoFace = f;
+    if (room.isPalifico && room.firstBidOfRound) {
+      room.palificoFace = f;
+    } else if (room.isPalifico && cp.diceCount === 1 && f !== room.palificoFace) {
+      room.palificoFace = f; // 1-die player changed face — update the round constraint
+    }
 
     room.lastBidderIndex  = room.currentPlayerIndex;
     room.currentBid       = { quantity: qty, face: room.isFaceoff ? null : f };
@@ -299,6 +434,32 @@ io.on('connection', socket => {
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
 
     io.to(ROOM).emit('bid_made', { bid: room.currentBid, bidderName: cp.name, gameState: publicState() });
+
+    // Auto-liar: fire challenge if the new current player has it locked
+    if (room.autoLiarPlayerId) {
+      const newCurrent = room.players[room.currentPlayerIndex];
+      if (newCurrent?.id === room.autoLiarPlayerId) {
+        room.autoLiarPlayerId = null;
+        setImmediate(() => processChallenge(newCurrent));
+      }
+    }
+  });
+
+  // ── Auto-liar (lock in a liar call for your next turn) ────────────────
+  socket.on('auto_liar', () => {
+    if (room.phase !== 'playing') return;
+    const p = room.players.find(pl => pl.id === socket.id);
+    if (!p) return;
+    // Can't lock autoliar on your own turn
+    if (room.players[room.currentPlayerIndex]?.id === socket.id) return;
+
+    if (room.autoLiarPlayerId === socket.id) {
+      room.autoLiarPlayerId = null;
+      io.to(ROOM).emit('auto_liar_update', { playerId: socket.id, playerName: p.name, active: false });
+    } else {
+      room.autoLiarPlayerId = socket.id;
+      io.to(ROOM).emit('auto_liar_update', { playerId: socket.id, playerName: p.name, active: true });
+    }
   });
 
   // ── Challenge (Liar) ──────────────────
@@ -306,114 +467,7 @@ io.on('connection', socket => {
     if (room.phase !== 'playing' || room.firstBidOfRound) return;
     const challenger = room.players[room.currentPlayerIndex];
     if (!challenger || challenger.id !== socket.id) return;
-    const bidder = room.players[room.lastBidderIndex];
-    if (!bidder) return;
-
-    room.phase = 'reveal';
-
-    // Tell all clients someone called LIAR — shown for 1.2s before reveal
-    io.to(ROOM).emit('liar_called', { challengerName: challenger.name });
-
-    // Calculate result now
-    const bid = room.currentBid;
-    let count = 0;
-    const revealedDice = room.players.map(p => {
-      const pd = { id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0 };
-      if (room.isFaceoff) {
-        count += p.dice.reduce((s, d) => s + d, 0);
-      } else {
-        p.dice.forEach(d => {
-          if (room.isPalifico) { if (d === bid.face) count++; }
-          else                  { if (d === bid.face || d === 1) count++; }
-        });
-      }
-      return pd;
-    });
-
-    const bidMet = count >= bid.quantity;
-    const loser  = bidMet ? challenger : bidder;
-
-    const result = {
-      revealedDice, bid, count, bidMet,
-      isPalifico: room.isPalifico,
-      isFaceoff: room.isFaceoff,
-      gameMode: room.gameMode,
-      bidderName: bidder.name,
-      challengerName: challenger.name,
-      loserName: loser.name,
-      loserId: loser.id
-    };
-
-    // Emit challenge_result after LIAR animation window
-    setTimeout(() => {
-      io.to(ROOM).emit('challenge_result', result);
-
-      // Resolve die change after reveal animation
-      setTimeout(() => {
-        const loserIdx = room.players.findIndex(p => p.id === loser.id);
-        if (loserIdx === -1) return;
-
-        const loserPlayer = room.players[loserIdx];
-
-        if (room.gameMode === 'reverse') {
-          // Reverse: loser gains a die; eliminated when exceeding 5
-          loserPlayer.diceCount++;
-
-          if (loserPlayer.diceCount > 5) {
-            loserPlayer.diceCount = 0;
-            loserPlayer.dice = [];
-
-            io.to(ROOM).emit('player_eliminated', {
-              playerId: loserPlayer.id,
-              playerName: loserPlayer.name
-            });
-            room.players.splice(loserIdx, 1);
-
-            if (room.players.length === 1) {
-              room.phase = 'over';
-              io.to(ROOM).emit('game_over', { winner: room.players[0].name });
-              return;
-            }
-
-            room.currentPlayerIndex = loserIdx % room.players.length;
-          } else {
-            // Loser goes first next round
-            room.currentPlayerIndex = loserIdx;
-          }
-        } else {
-          // Standard: loser loses a die; eliminated at 0
-          loserPlayer.diceCount--;
-
-          if (loserPlayer.diceCount <= 0) {
-            loserPlayer.diceCount = 0;
-            loserPlayer.dice = [];
-
-            io.to(ROOM).emit('player_eliminated', {
-              playerId: loserPlayer.id,
-              playerName: loserPlayer.name
-            });
-            room.players.splice(loserIdx, 1);
-
-            if (room.players.length === 1) {
-              room.phase = 'over';
-              io.to(ROOM).emit('game_over', { winner: room.players[0].name });
-              return;
-            }
-
-            room.palificoTriggerPlayer = null;
-            room.currentPlayerIndex = loserIdx % room.players.length;
-          } else {
-            loserPlayer.dice = loserPlayer.dice.slice(0, loserPlayer.diceCount);
-            room.currentPlayerIndex = loserIdx;
-            if (loserPlayer.diceCount === 1) room.palificoTriggerPlayer = loserPlayer.id;
-          }
-        }
-
-        room.roundNumber++;
-        room.revealResolved = true;
-        io.to(ROOM).emit('reveal_resolved');
-      }, 4500);
-    }, 1200);
+    processChallenge(challenger);
   });
 
   // ── Rage quit ─────────────────────────

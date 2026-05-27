@@ -376,6 +376,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 
 /* ── Reveal: summary ─────────────────────────────────────────────────── */
 .reveal-summary-count { color: var(--muted); margin-bottom: 14px; }
+.reveal-count-line { font-size: .82rem; color: var(--muted); text-align: center; margin: 4px 0 8px; }
 .reveal-outcome {
   font-size: 1rem; font-weight: 700; padding: 12px 20px;
   border-radius: 12px; margin-bottom: 10px;
@@ -530,14 +531,42 @@ input[type="text"]::placeholder { color: var(--muted); }
   padding: 3px 12px; font-weight: 700; font-size: .75rem; letter-spacing: 1.5px;
 }
 
+/* ── Autoliar button ─────────────────────────────────────────────────── */
+#autoliar-section {
+  display: flex; justify-content: center; margin: 4px 0;
+}
+.btn-autoliar {
+  background: rgba(124,58,237,.15); color: #a78bfa;
+  border: 1px solid rgba(124,58,237,.4); border-radius: 10px;
+  font-size: .85rem; font-weight: 600; padding: 8px 22px;
+  cursor: pointer; touch-action: manipulation;
+  transition: background .2s, color .2s, border-color .2s, box-shadow .2s;
+}
+.btn-autoliar:hover {
+  background: rgba(124,58,237,.3); color: #c4b5fd;
+  border-color: rgba(124,58,237,.7);
+}
+.btn-autoliar.autoliar-locked {
+  background: rgba(220,38,38,.18); color: #fca5a5;
+  border-color: rgba(220,38,38,.55);
+  box-shadow: 0 0 10px rgba(220,38,38,.3);
+  animation: autoLiarPulse 1.6s ease-in-out infinite;
+}
+@keyframes autoLiarPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(220,38,38,.3); }
+  50% { box-shadow: 0 0 18px rgba(220,38,38,.6); }
+}
+
 /* ── End Game button ─────────────────────────────────────────────────── */
 .btn-end-game {
-  background: rgba(239,68,68,.12); color: var(--danger);
-  border: 1px solid rgba(239,68,68,.4); font-size: .78rem;
-  padding: 7px 18px; width: auto; margin-top: 4px;
-  touch-action: manipulation;
+  position: fixed; bottom: 14px; right: 14px; z-index: 20;
+  background: rgba(239,68,68,.1); color: rgba(239,68,68,.45);
+  border: 1px solid rgba(239,68,68,.2); border-radius: 8px;
+  font-size: .72rem; padding: 5px 12px; width: auto; margin: 0;
+  cursor: pointer; touch-action: manipulation;
+  transition: background .2s, color .2s, border-color .2s;
 }
-.btn-end-game:hover { background: rgba(239,68,68,.22); border-color: var(--danger); }
+.btn-end-game:hover { background: rgba(239,68,68,.22); color: var(--danger); border-color: rgba(239,68,68,.5); }
 
 /* ── Rage Quit Modal ─────────────────────────────────────────────────── */
 #ragequit-overlay {
@@ -601,9 +630,10 @@ input[type="text"]::placeholder { color: var(--muted); }
   opacity: 0; transform: translateY(20px); transition: opacity .25s, transform .25s;
 }
 .toast.show { opacity: 1; transform: translateY(0); }
-.toast.toast-error { border-color: var(--danger); color: var(--danger); }
-.toast.toast-warn  { border-color: var(--warning); color: var(--warning); }
-.toast.toast-ok    { border-color: var(--success); color: var(--success); }
+.toast.toast-error   { border-color: var(--danger); color: var(--danger); }
+.toast.toast-warn    { border-color: var(--warning); color: var(--warning); }
+.toast.toast-ok      { border-color: var(--success); color: var(--success); }
+.toast.toast-autoliar { border-color: #a78bfa; color: #a78bfa; font-weight: 700; letter-spacing: .03em; }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
@@ -634,6 +664,28 @@ input[type="text"]::placeholder { color: var(--muted); }
 #faceoff-sub {
   font-size: 1.15rem; color: #fde68a; margin-top: 14px; font-weight: 500;
   opacity: 0; animation: fadeInUp .5s .35s ease forwards;
+}
+
+/* ── Peak Overlay ────────────────────────────────────────────────────────── */
+#peak-overlay {
+  position: fixed; inset: 0; background: rgba(2,8,20,.94);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 80; gap: 12px;
+}
+#peak-mountain { animation: peakMtnIn 0.65s cubic-bezier(.22,1,.36,1) both; }
+@keyframes peakMtnIn {
+  from { transform: scale(0.55) translateY(24px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+#peak-title {
+  font-size: 6.5rem; font-weight: 900; line-height: 1; letter-spacing: 6px;
+  color: #9fc8ff;
+  text-shadow: 0 0 40px rgba(100,170,255,.9), 0 0 80px rgba(80,140,255,.4);
+  opacity: 0; animation: fadeInUp .5s .3s ease forwards;
+}
+#peak-sub {
+  font-size: 1.1rem; color: #adc5e8; font-weight: 500;
+  opacity: 0; animation: fadeInUp .4s .55s ease forwards;
 }
 
 /* ── Faceoff badge ───────────────────────────────────────────────────────── */
