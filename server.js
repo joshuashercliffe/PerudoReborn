@@ -175,6 +175,7 @@ io.on('connection', socket => {
 
     // Swap in new socket
     sessions[sessionToken] = socket.id;
+    if (room.host === oldSocketId) room.host = socket.id;
     player.id = socket.id;
     player.connected = true;
     socket.playerName = player.name;
@@ -221,7 +222,8 @@ io.on('connection', socket => {
 
   // ── Start game ────────────────────────
   socket.on('start_game', () => {
-    if (room.host !== socket.id || room.phase !== 'lobby') return;
+    if (room.phase !== 'lobby') return;
+    if (!room.players.find(p => p.id === socket.id)) return;
     if (room.players.length < 2) return socket.emit('start_error', { message: 'Need at least 2 players to start.' });
 
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
@@ -345,20 +347,28 @@ io.on('connection', socket => {
     const idx = room.players.findIndex(p => p.id === socket.id);
     if (idx === -1) return;
 
-    const wasHost = room.host === socket.id;
-    const player  = room.players[idx];
+    const player = room.players[idx];
+    player.connected = false;
 
     if (room.phase === 'lobby' || room.phase === 'over') {
-      room.players.splice(idx, 1);
-      if (wasHost && room.players.length > 0) room.host = room.players[0].id;
+      // Give 60s grace in lobby/over too so a phone lock doesn't kick them
       io.to(ROOM).emit('lobby_update', publicState());
+
+      player.disconnectTimer = setTimeout(() => {
+        const stillIdx = room.players.findIndex(p => p.id === socket.id);
+        if (stillIdx === -1 || room.players[stillIdx].connected) return;
+
+        const wasHost = room.host === socket.id;
+        room.players.splice(stillIdx, 1);
+        if (wasHost && room.players.length > 0) room.host = room.players[0].id;
+        io.to(ROOM).emit('lobby_update', publicState());
+      }, 60000);
     } else {
-      // Mark disconnected; give 60s to reconnect before eliminating
-      player.connected = false;
+      // In-game: mark disconnected, give 60s to reconnect before eliminating
       io.to(ROOM).emit('player_disconnected', { playerName: player.name, gameState: publicState() });
 
       player.disconnectTimer = setTimeout(() => {
-        // If player reconnected, their id changed — findIndex will return -1, so we bail
+        // If player reconnected their id changed — findIndex returns -1 and we bail
         const stillIdx = room.players.findIndex(p => p.id === socket.id);
         if (stillIdx === -1 || room.players[stillIdx].connected) return;
 

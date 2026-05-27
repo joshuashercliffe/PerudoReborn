@@ -141,7 +141,14 @@ socket.on('rejoined', ({ sessionToken, state, dice, phase }) => {
     showScreen('screen-lobby');
     renderLobby(state);
   } else if (phase === 'over') {
-    document.getElementById('winner-name').textContent = state.players[0]?.name ?? '';
+    const w = state.players[0]?.name ?? '';
+    const victoryQuips = [
+      `👑 ${w} has conquered the table and claimed victory.`,
+      `🎲 ${w} has become statistically unstoppable.`,
+      `🔥 ${w} turned pure luck into total domination.`,
+    ];
+    document.getElementById('winner-name').textContent =
+      victoryQuips[Math.floor(Math.random() * victoryQuips.length)];
     showScreen('screen-over');
   } else {
     // playing or reveal — drop them back into the game view
@@ -179,18 +186,19 @@ function renderLobby(state) {
 
   const startBtn = document.getElementById('btn-start');
   const hint     = document.getElementById('start-hint');
-  if (state.host === myId) {
+  const amInLobby = state.players.some(p => p.id === myId);
+  if (amInLobby) {
     showEl(startBtn);
     if (state.players.length < 2) {
       startBtn.disabled = true;
       hint.textContent = 'Waiting for at least 2 players…';
     } else {
       startBtn.disabled = false;
-      hint.textContent = `${state.players.length} players ready — let's go!`;
+      hint.textContent = `${state.players.length} players ready — anyone can start!`;
     }
   } else {
     hideEl(startBtn);
-    hint.textContent = 'Waiting for the host to start…';
+    hint.textContent = '';
   }
 }
 
@@ -437,9 +445,9 @@ function showReveal(r) {
 
   document.getElementById('reveal-all-dice').innerHTML = revealedDice.map(pd => {
     const isMe = pd.id === myId;
-    const relevant = pd.dice.filter(d =>
-      d === bid.face || (!isPalifico && d === 1 && bid.face !== 1)
-    );
+    const relevant = pd.dice
+      .filter(d => d === bid.face || (!isPalifico && d === 1 && bid.face !== 1))
+      .sort((a, b) => a - b);
     const diceHtml = relevant.length
       ? relevant.map(d => makeDie(d, 'small highlighted')).join('')
       : '<span class="reveal-none">—</span>';
@@ -449,16 +457,25 @@ function showReveal(r) {
     </div>`;
   }).join('');
 
-  const wildNote = isPalifico ? ' (no wilds — Palifico)' : ' (1s are wild)';
+  const loserQuips = [
+    `💀 ${esc(loserName)} angered the dice gods and paid the tax.`,
+    `💀 ${esc(loserName)} just lowered quick maths.`,
+    `💀 ${esc(loserName)} got audited by RNGesus.`,
+    `💀 ${esc(loserName)} experienced a critical skill issue.`,
+    `💀 ${esc(loserName)} is on his way straight home.`,
+    `💀 ${esc(loserName)} lost a die to budget cuts.`,
+  ];
+  const loserLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
+
   document.getElementById('reveal-summary').innerHTML = `
     <div class="reveal-summary-bid">Bid: ${bid.quantity} × ${makeDie(bid.face, 'small')}</div>
-    <div class="reveal-summary-count">Found: <strong>${count}</strong> ${FACE_NAME[bid.face]}${wildNote}</div>
+    <div class="reveal-summary-count">Found: <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>
     <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">
       ${bidMet
         ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses a die.`
         : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses a die.`}
     </div>
-    <div class="reveal-loser-line">💀 ${esc(loserName)} loses a die</div>`;
+    <div class="reveal-loser-line">${loserLine}</div>`;
 
   showEl('reveal-overlay');
 }
@@ -471,7 +488,15 @@ socket.on('player_eliminated', ({ playerName }) => {
 });
 
 function animateElimination(name) {
-  document.getElementById('elimination-name').textContent = `${name} has been sent HOME!`;
+  const eliminationQuips = [
+    `${name} has been sent straight home!`,
+    `${name} is out of the game and into the history books.`,
+    `${name} is officially out of dice and out of hope.`,
+    `${name} has been voted off the island by RNG.`,
+    `${name} is no longer among the rolling.`,
+  ];
+  document.getElementById('elimination-name').textContent =
+    eliminationQuips[Math.floor(Math.random() * eliminationQuips.length)];
 
   const container = document.getElementById('dice-particles');
   container.innerHTML = '';
@@ -500,7 +525,13 @@ function animateElimination(name) {
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('game_over', ({ winner }) => {
   hideEl('reveal-overlay');
-  document.getElementById('winner-name').textContent = winner;
+  const victoryQuips = [
+    `👑 ${winner} has conquered the table and claimed victory.`,
+    `🎲 ${winner} has become statistically unstoppable.`,
+    `🔥 ${winner} turned pure luck into total domination.`,
+  ];
+  document.getElementById('winner-name').textContent =
+    victoryQuips[Math.floor(Math.random() * victoryQuips.length)];
   setTimeout(() => showScreen('screen-over'), 600);
 });
 

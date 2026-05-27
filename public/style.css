@@ -81,6 +81,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 .btn {
   display: inline-block; width: 100%;
   padding: 13px 20px; font-size: .95rem; font-weight: 700;
+  touch-action: manipulation;
   letter-spacing: .5px; text-transform: uppercase;
   border: none; border-radius: 10px; cursor: pointer;
   transition: transform .15s, box-shadow .15s, opacity .15s;
@@ -249,6 +250,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   border: 1px solid var(--border); border-radius: 8px; color: var(--text);
   font-size: 1.2rem; cursor: pointer; transition: background .15s;
   display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
 }
 .btn-stepper:hover { background: rgba(255,255,255,.18); }
 #qty-val { font-size: 1.9rem; font-weight: 900; min-width: 44px; text-align: center; }
@@ -259,7 +261,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   background: rgba(255,255,255,.05); border: 2px solid var(--border);
   border-radius: 10px; cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center;
-  padding: 6px;
+  padding: 6px; touch-action: manipulation;
 }
 .face-btn:hover:not(:disabled) { background: rgba(255,255,255,.12); border-color: var(--muted); }
 .face-btn.selected { border-color: var(--accent); background: rgba(233,69,96,.15); }
