@@ -375,7 +375,7 @@ io.on('connection', socket => {
         room.roundNumber++;
         room.revealResolved = true;
         io.to(ROOM).emit('reveal_resolved');
-      }, 9000);
+      }, 4500);
     }, 1200);
   });
 

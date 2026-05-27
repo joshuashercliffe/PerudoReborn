@@ -470,19 +470,17 @@ function showWoahOverlay(aboveBy) {
   const phase1   = document.getElementById('woah-phase1');
   const phase2   = document.getElementById('woah-phase2');
   const aboveEl  = document.getElementById('woah-above');
-  const img      = document.getElementById('woah-img');
+  const wrap     = document.getElementById('woah-img-wrap');
+  const label    = document.getElementById('woah-label');
 
-  // Reset
   showEl(phase1);
   hideEl(phase2);
   aboveEl.textContent = `${aboveBy} above quick math??`;
 
-  // Re-trigger spin animation on img and label
-  img.style.animation = 'none';
-  document.getElementById('woah-label').style.animation = 'none';
-  void img.offsetWidth;
-  img.style.animation = '';
-  document.getElementById('woah-label').style.animation = '';
+  // Re-trigger spin animations
+  [wrap, label].forEach(el => { el.style.animation = 'none'; });
+  void wrap.offsetWidth;
+  [wrap, label].forEach(el => { el.style.animation = ''; });
 
   showEl(overlay);
 
@@ -566,12 +564,16 @@ document.getElementById('btn-next-round').addEventListener('click', () => {
 function showReveal(r) {
   const { revealedDice, bid, count, bidMet, isPalifico, gameMode, bidderName, challengerName, loserName } = r;
 
-  // Row of all players' dice, each tinted in their assigned colour
+  // Row of relevant dice per player, each tinted in their assigned colour
   const playersRowHtml = revealedDice.map(pd => {
     const color = PLAYER_COLORS[pd.colorIndex ?? 0];
     const isMe  = pd.id === myId;
-    const sortedDice = [...pd.dice].sort((a, b) => a - b);
-    const diceHtml = sortedDice.map(d => makeColoredDie(d, color, 'small')).join('');
+    const relevant = [...pd.dice]
+      .filter(d => d === bid.face || (!isPalifico && d === 1 && bid.face !== 1))
+      .sort((a, b) => a - b);
+    const diceHtml = relevant.length
+      ? relevant.map(d => makeColoredDie(d, color, 'small')).join('')
+      : `<span class="reveal-none" style="color:${color}44">—</span>`;
     return `<div class="reveal-player-section">
       <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
       <div class="reveal-player-dice">${diceHtml}</div>
