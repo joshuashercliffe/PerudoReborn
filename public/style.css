@@ -305,6 +305,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 .reveal-outcome.win  { background: rgba(34,197,94,.18); color: var(--success); border: 1px solid rgba(34,197,94,.4); }
 .reveal-outcome.lose { background: rgba(239,68,68,.18);  color: var(--danger);  border: 1px solid rgba(239,68,68,.4); }
 .reveal-loser-line { font-size: .9rem; color: var(--muted); }
+.reveal-none { font-size: 1.4rem; color: var(--muted); line-height: 46px; }
 
 /* ── LIAR Overlay ────────────────────────────────────────────────────── */
 #liar-overlay {
@@ -328,6 +329,33 @@ input[type="text"]::placeholder { color: var(--muted); }
 }
 #liar-caller { font-size: 1.1rem; color: var(--muted); margin-top: 16px; opacity: 0; animation: fadeInUp .4s .25s ease forwards; }
 @keyframes fadeInUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+
+/* ── Palifico Overlay ────────────────────────────────────────────────── */
+#palifico-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.88);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 80;
+}
+#palifico-text {
+  font-size: 8rem; font-weight: 900; line-height: 1;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-shadow: 0 0 50px rgba(245,166,35,.95), 0 0 110px rgba(245,166,35,.5);
+  animation: palificoPop 2s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes palificoPop {
+  0%   { transform: scale(0.25) rotate(-5deg); opacity: 0; }
+  28%  { transform: scale(1.22) rotate(3deg);  opacity: 1; }
+  44%  { transform: scale(0.97) rotate(-1deg); opacity: 1; }
+  58%  { transform: scale(1.04);               opacity: 1; }
+  72%  { transform: scale(1);                  opacity: 1; }
+  85%  { transform: scale(1);                  opacity: 1; }
+  100% { transform: scale(1.08);               opacity: 0; }
+}
+#palifico-sub {
+  font-size: 1.15rem; color: #fde68a; margin-top: 14px; font-weight: 500;
+  opacity: 0; animation: fadeInUp .5s .35s ease forwards;
+}
 
 /* ── Elimination Overlay ─────────────────────────────────────────────── */
 #elimination-overlay {
@@ -363,6 +391,38 @@ input[type="text"]::placeholder { color: var(--muted); }
 @keyframes spin { from { transform: rotate(-360deg) scale(0); } to { transform: rotate(0) scale(1); } }
 .winner-title { color: var(--gold); font-size: 2.5rem; margin-bottom: 8px; }
 .winner-name { font-size: 2rem; font-weight: 900; color: var(--text); margin: 8px 0 32px; }
+
+/* ── Bid History ─────────────────────────────────────────────────────── */
+#bid-history-section {
+  width: 100%; max-width: 540px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+#bid-history-section summary {
+  padding: 10px 18px; cursor: pointer; user-select: none;
+  font-size: .8rem; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted);
+  list-style: none; display: flex; align-items: center; gap: 8px;
+}
+#bid-history-section summary::before {
+  content: '▶'; font-size: .65rem; transition: transform .2s;
+}
+#bid-history-section[open] summary::before { transform: rotate(90deg); }
+#bid-history-section summary::-webkit-details-marker { display: none; }
+#bid-history-list {
+  padding: 8px 12px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 220px; overflow-y: auto;
+}
+.bid-history-entry {
+  display: flex; align-items: center; gap: 8px;
+  font-size: .85rem; padding: 4px 6px; border-radius: 6px;
+}
+.bid-history-entry:nth-child(odd) { background: rgba(255,255,255,.03); }
+.bhe-name { color: var(--muted); min-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bhe-arrow { color: var(--border); }
+.bhe-bid { display: flex; align-items: center; gap: 5px; color: var(--text); font-weight: 600; }
+.bhe-liar { color: var(--danger); font-weight: 700; }
 
 /* ── Toasts ──────────────────────────────────────────────────────────── */
 #toast-container {

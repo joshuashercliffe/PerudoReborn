@@ -25,12 +25,13 @@ function makeDie(value, extraClass = '') {
 }
 
 // Client state
-let myId    = null;
-let myName  = null;
-let gs      = null;
-let myDice  = [];
-let selQty  = 1;
-let selFace = 2;
+let myId        = null;
+let myName      = null;
+let gs          = null;
+let myDice      = [];
+let selQty      = 1;
+let selFace     = 2;
+let bidHistory  = [];
 
 socket.on('connect', () => {
   myId = socket.id;
@@ -218,10 +219,30 @@ socket.on('start_error', ({ message }) => toast(message, 'error'));
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('round_start', state => {
   gs = state;
+  bidHistory = [];
   hideEl('reveal-overlay');
   showScreen('screen-game');
   renderGame();
+  renderBidHistory();
+  if (state.isPalifico) showPalificoAnnounce(state.currentPlayerName);
 });
+
+function showPalificoAnnounce(triggerName) {
+  const overlay = document.getElementById('palifico-overlay');
+  document.getElementById('palifico-sub').textContent =
+    `${triggerName} has one die — no wilds this round!`;
+
+  // Re-trigger animations
+  ['palifico-text', 'palifico-sub'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
+
+  showEl(overlay);
+  setTimeout(() => hideEl(overlay), 2000);
+}
 
 socket.on('your_dice', ({ dice }) => {
   myDice = dice;
@@ -289,8 +310,32 @@ function renderStatus() {
   }
 }
 
+function renderBidHistory() {
+  const list = document.getElementById('bid-history-list');
+  if (!bidHistory.length) {
+    list.innerHTML = '<span class="muted-msg" style="padding:4px 6px;font-size:.85rem">No bids yet this round</span>';
+    return;
+  }
+  list.innerHTML = bidHistory.map(e => {
+    if (e.type === 'liar') {
+      return `<div class="bid-history-entry">
+        <span class="bhe-name">${esc(e.name)}</span>
+        <span class="bhe-arrow">→</span>
+        <span class="bhe-liar">LIAR!</span>
+      </div>`;
+    }
+    return `<div class="bid-history-entry">
+      <span class="bhe-name">${esc(e.name)}</span>
+      <span class="bhe-arrow">→</span>
+      <span class="bhe-bid"><strong>${e.qty}</strong> × ${makeDie(e.face, 'small')}</span>
+    </div>`;
+  }).join('');
+  // Auto-scroll to bottom so latest bid is visible when open
+  list.scrollTop = list.scrollHeight;
+}
+
 function renderMyDice() {
-  document.getElementById('my-dice').innerHTML = myDice.map(d => makeDie(d)).join('');
+  document.getElementById('my-dice').innerHTML = [...myDice].sort((a, b) => a - b).map(d => makeDie(d)).join('');
 }
 
 function renderActionUI() {
@@ -351,7 +396,9 @@ document.getElementById('btn-challenge').addEventListener('click', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('bid_made', ({ bid, bidderName, gameState: state }) => {
   gs = state;
+  bidHistory.push({ type: 'bid', name: bidderName, qty: bid.quantity, face: bid.face });
   renderGame();
+  renderBidHistory();
   if (bidderName !== myName) {
     toast(`${bidderName} bid ${bid.quantity} ${FACE_NAME[bid.face]}`);
   }
@@ -363,6 +410,7 @@ socket.on('bid_error', ({ message }) => toast(message, 'error'));
 // LIAR called — show dramatic overlay for ~1.2s before reveal
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('liar_called', ({ challengerName }) => {
+  bidHistory.push({ type: 'liar', name: challengerName });
   const overlay = document.getElementById('liar-overlay');
   document.getElementById('liar-caller').textContent = `${challengerName} called it!`;
 
@@ -389,11 +437,12 @@ function showReveal(r) {
 
   document.getElementById('reveal-all-dice').innerHTML = revealedDice.map(pd => {
     const isMe = pd.id === myId;
-    const diceHtml = pd.dice.map(d => {
-      const wild  = !isPalifico && d === 1 && bid.face !== 1;
-      const match = d === bid.face;
-      return makeDie(d, `small${(wild || match) ? ' highlighted' : ''}`);
-    }).join('');
+    const relevant = pd.dice.filter(d =>
+      d === bid.face || (!isPalifico && d === 1 && bid.face !== 1)
+    );
+    const diceHtml = relevant.length
+      ? relevant.map(d => makeDie(d, 'small highlighted')).join('')
+      : '<span class="reveal-none">—</span>';
     return `<div class="reveal-player-block">
       <div class="reveal-player-label">${esc(pd.name)}${isMe ? ' (you)' : ''}</div>
       <div class="reveal-dice-row">${diceHtml}</div>

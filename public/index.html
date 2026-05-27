@@ -20,6 +20,12 @@
     <div id="liar-caller"></div>
   </div>
 
+  <!-- PALIFICO overlay -->
+  <div id="palifico-overlay" class="hidden">
+    <div id="palifico-text">PALIFICO!</div>
+    <div id="palifico-sub"></div>
+  </div>
+
   <!-- Toast container -->
   <div id="toast-container"></div>
 
@@ -29,8 +35,8 @@
   <div id="screen-name" class="screen active">
     <div class="card">
       <div class="logo">⚅</div>
-      <h1>Perudo</h1>
-      <p class="tagline">Liar's Dice</p>
+      <h1>Perudo Bot</h1>
+      <p class="tagline">REBORN</p>
       <input id="name-input" type="text" placeholder="Enter your name to join…" maxlength="20"
              autocomplete="off" spellcheck="false">
       <button id="name-submit" class="btn btn-primary">Join Lobby →</button>
@@ -111,6 +117,12 @@
           <button id="btn-challenge" class="btn btn-danger" disabled>Liar</button>
         </div>
       </div>
+
+      <!-- Bid history — collapsed by default -->
+      <details id="bid-history-section">
+        <summary>Bid History</summary>
+        <div id="bid-history-list"></div>
+      </details>
 
     </div><!-- /#game-center -->
 
