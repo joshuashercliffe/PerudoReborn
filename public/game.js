@@ -5,6 +5,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const socket = io();
 
+// Player colours — index matches server-assigned colorIndex
+const PLAYER_COLORS = ['#60a5fa','#f87171','#4ade80','#d97706','#c084fc','#fb923c','#2dd4bf','#f472b6'];
+
 // Dot layout for each die face (3×3 grid, 1=dot, 0=empty)
 const DIE_LAYOUT = {
   1: [0,0,0, 0,1,0, 0,0,0],
@@ -22,6 +25,12 @@ function makeDie(value, extraClass = '') {
   const layout = DIE_LAYOUT[value] || DIE_LAYOUT[1];
   const dots = layout.map(on => `<span class="dot${on ? '' : ' empty'}"></span>`).join('');
   return `<div class="die${extraClass ? ' ' + extraClass : ''}">${dots}</div>`;
+}
+
+function makeColoredDie(value, color, extraClass = '') {
+  const layout = DIE_LAYOUT[value] || DIE_LAYOUT[1];
+  const dots = layout.map(on => `<span class="dot${on ? '' : ' empty'}"></span>`).join('');
+  return `<div class="die${extraClass ? ' ' + extraClass : ''}" style="--dot-color:${color};box-shadow:0 3px 10px rgba(0,0,0,.4),0 0 0 2px ${color}44,0 1px 0 #ccc">${dots}</div>`;
 }
 
 // Client state
@@ -111,11 +120,10 @@ function submitName() {
   socket.emit('set_name', { name: n });
 }
 
-// Server rejected (game in progress)
-socket.on('join_error', ({ message }) => {
-  const el = document.getElementById('name-error');
-  el.textContent = message;
-  showEl(el);
+// Server rejected (game in progress) — show the in-session card
+socket.on('join_error', () => {
+  hideEl('name-card');
+  showEl('in-session-card');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,9 +173,16 @@ socket.on('rejoin_failed', () => {
 
 socket.on('lobby_update', state => {
   gs = state;
-  if (document.getElementById('screen-lobby').classList.contains('active') ||
-      document.getElementById('screen-over').classList.contains('active')) {
+  if (document.getElementById('screen-lobby').classList.contains('active')) {
     renderLobby(state);
+  } else if (document.getElementById('screen-over').classList.contains('active')) {
+    if (state.players.some(p => p.id === myId)) {
+      showScreen('screen-lobby');
+      renderLobby(state);
+    } else {
+      localStorage.removeItem('perudoSession');
+      showScreen('screen-name');
+    }
   }
 });
 
@@ -184,8 +199,18 @@ function renderLobby(state) {
     </div>`;
   }).join('');
 
-  const startBtn = document.getElementById('btn-start');
-  const hint     = document.getElementById('start-hint');
+  // Sync mode picker
+  const modeDescs = {
+    standard: '5 dice each — lose a die when you lose a round',
+    reverse:  '1 die each — gain a die when you lose, go above 5 and you\'re out'
+  };
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === state.gameMode);
+  });
+  document.getElementById('mode-desc').textContent = modeDescs[state.gameMode] ?? '';
+
+  const startBtn  = document.getElementById('btn-start');
+  const hint      = document.getElementById('start-hint');
   const amInLobby = state.players.some(p => p.id === myId);
   if (amInLobby) {
     showEl(startBtn);
@@ -204,6 +229,12 @@ function renderLobby(state) {
 
 document.getElementById('btn-start').addEventListener('click', () => socket.emit('start_game'));
 socket.on('start_error', ({ message }) => toast(message, 'error'));
+
+document.getElementById('mode-btns').addEventListener('click', e => {
+  const btn = e.target.closest('.mode-btn');
+  if (!btn) return;
+  socket.emit('set_mode', { mode: btn.dataset.mode });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Face picker — built with CSS dice
@@ -254,7 +285,7 @@ function showPalificoAnnounce(triggerName) {
 
 socket.on('your_dice', ({ dice }) => {
   myDice = dice;
-  renderMyDice();
+  dealMyDice();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,6 +312,7 @@ function renderPlayersBar() {
   }).join('');
 
   document.getElementById('round-label').textContent = `Round ${gs.roundNumber}`;
+  gs.gameMode === 'reverse' ? showEl('mode-badge') : hideEl('mode-badge');
   gs.isPalifico ? showEl('palifico-badge') : hideEl('palifico-badge');
 }
 
@@ -343,7 +375,38 @@ function renderBidHistory() {
 }
 
 function renderMyDice() {
-  document.getElementById('my-dice').innerHTML = [...myDice].sort((a, b) => a - b).map(d => makeDie(d)).join('');
+  document.getElementById('my-dice').innerHTML =
+    [...myDice].sort((a, b) => a - b).map(d => makeDie(d)).join('');
+}
+
+function dealMyDice() {
+  const container = document.getElementById('my-dice');
+  const finalDice = [...myDice].sort((a, b) => a - b);
+  if (!finalDice.length) { container.innerHTML = ''; return; }
+
+  let ticks = 0;
+  const shuffleTicks = 13;
+
+  function tick() {
+    if (ticks < shuffleTicks) {
+      container.innerHTML = finalDice
+        .map(() => makeDie(Math.floor(Math.random() * 6) + 1, 'die-rolling'))
+        .join('');
+      ticks++;
+      // Slow down toward the end like a roulette wheel
+      const delay = ticks < 7 ? 42 : 42 + (ticks - 7) * 28;
+      setTimeout(tick, delay);
+    } else {
+      // Staggered spring-land for each die
+      container.innerHTML = finalDice.map((d, i) => {
+        const dots = (DIE_LAYOUT[d] || DIE_LAYOUT[1])
+          .map(on => `<span class="dot${on ? '' : ' empty'}"></span>`).join('');
+        return `<div class="die die-land" style="animation-delay:${i * 55}ms">${dots}</div>`;
+      }).join('');
+    }
+  }
+
+  tick();
 }
 
 function renderActionUI() {
@@ -400,15 +463,66 @@ document.getElementById('btn-challenge').addEventListener('click', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Wild opening bid — WOAH overlay
+// ─────────────────────────────────────────────────────────────────────────────
+function showWoahOverlay(aboveBy) {
+  const overlay  = document.getElementById('woah-overlay');
+  const phase1   = document.getElementById('woah-phase1');
+  const phase2   = document.getElementById('woah-phase2');
+  const aboveEl  = document.getElementById('woah-above');
+  const img      = document.getElementById('woah-img');
+
+  // Reset
+  showEl(phase1);
+  hideEl(phase2);
+  aboveEl.textContent = `${aboveBy} above quick math??`;
+
+  // Re-trigger spin animation on img and label
+  img.style.animation = 'none';
+  document.getElementById('woah-label').style.animation = 'none';
+  void img.offsetWidth;
+  img.style.animation = '';
+  document.getElementById('woah-label').style.animation = '';
+
+  showEl(overlay);
+
+  // After 2s: swap phases
+  setTimeout(() => {
+    hideEl(phase1);
+
+    // Re-trigger reveal animations
+    aboveEl.style.animation = 'none';
+    document.getElementById('woah-send').style.animation = 'none';
+    void aboveEl.offsetWidth;
+    aboveEl.style.animation = '';
+    document.getElementById('woah-send').style.animation = '';
+
+    showEl(phase2);
+
+    // Auto-hide after 2.5s
+    setTimeout(() => hideEl(overlay), 2500);
+  }, 2000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Bid made
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('bid_made', ({ bid, bidderName, gameState: state }) => {
+  const wasFirstBid = gs.firstBidOfRound;
   gs = state;
   bidHistory.push({ type: 'bid', name: bidderName, qty: bid.quantity, face: bid.face });
   renderGame();
   renderBidHistory();
   if (bidderName !== myName) {
     toast(`${bidderName} bid ${bid.quantity} ${FACE_NAME[bid.face]}`);
+  }
+
+  if (wasFirstBid) {
+    const totalDice = state.players.reduce((s, p) => s + p.diceCount, 0);
+    const quickMath = totalDice / 3;
+    if (bid.quantity >= quickMath + 2) {
+      showWoahOverlay(Math.round(bid.quantity - quickMath));
+    }
   }
 });
 
@@ -429,7 +543,7 @@ socket.on('liar_called', ({ challengerName }) => {
   liarText.style.animation = '';
 
   showEl(overlay);
-  setTimeout(() => hideEl(overlay), 1200);
+  setTimeout(() => hideEl(overlay), 1800);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -440,24 +554,40 @@ socket.on('challenge_result', result => {
   showReveal(result);
 });
 
-function showReveal(r) {
-  const { revealedDice, bid, count, bidMet, isPalifico, bidderName, challengerName, loserName } = r;
+socket.on('reveal_resolved', () => {
+  showEl('btn-next-round');
+});
 
-  document.getElementById('reveal-all-dice').innerHTML = revealedDice.map(pd => {
-    const isMe = pd.id === myId;
-    const relevant = pd.dice
-      .filter(d => d === bid.face || (!isPalifico && d === 1 && bid.face !== 1))
-      .sort((a, b) => a - b);
-    const diceHtml = relevant.length
-      ? relevant.map(d => makeDie(d, 'small highlighted')).join('')
-      : '<span class="reveal-none">—</span>';
-    return `<div class="reveal-player-block">
-      <div class="reveal-player-label">${esc(pd.name)}${isMe ? ' (you)' : ''}</div>
-      <div class="reveal-dice-row">${diceHtml}</div>
+document.getElementById('btn-next-round').addEventListener('click', () => {
+  hideEl('btn-next-round');
+  socket.emit('next_round');
+});
+
+function showReveal(r) {
+  const { revealedDice, bid, count, bidMet, isPalifico, gameMode, bidderName, challengerName, loserName } = r;
+
+  // Row of all players' dice, each tinted in their assigned colour
+  const playersRowHtml = revealedDice.map(pd => {
+    const color = PLAYER_COLORS[pd.colorIndex ?? 0];
+    const isMe  = pd.id === myId;
+    const sortedDice = [...pd.dice].sort((a, b) => a - b);
+    const diceHtml = sortedDice.map(d => makeColoredDie(d, color, 'small')).join('');
+    return `<div class="reveal-player-section">
+      <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
+      <div class="reveal-player-dice">${diceHtml}</div>
     </div>`;
   }).join('');
 
-  const loserQuips = [
+  // Bid row: bid.quantity copies of the bid-face die
+  const bidDiceHtml = Array.from({ length: bid.quantity }, () => makeDie(bid.face, 'small')).join('');
+
+  const loserQuips = gameMode === 'reverse' ? [
+    `📈 ${esc(loserName)} is collecting dice like they cost nothing`,
+    `📦 ${esc(loserName)} added to their growing problem`,
+    `🎲 ${esc(loserName)} has too many dice and not enough skill`,
+    `🚨 ${esc(loserName)} is getting dangerously overstocked`,
+    `🔢 ${esc(loserName)} raised the quick maths the wrong way`,
+  ] : [
     `💀 ${esc(loserName)} angered the dice gods and paid the tax`,
     `💀 ${esc(loserName)} just lowered quick maths`,
     `💀 ${esc(loserName)} got audited by RNGesus`,
@@ -467,16 +597,23 @@ function showReveal(r) {
   ];
   const loserLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
 
+  document.getElementById('reveal-all-dice').innerHTML = `
+    <div class="reveal-players-row">${playersRowHtml}</div>
+    <div class="reveal-bid-row">
+      <span class="reveal-bid-label">Bid</span>
+      <div class="reveal-bid-dice">${bidDiceHtml}</div>
+    </div>`;
+
   document.getElementById('reveal-summary').innerHTML = `
-    <div class="reveal-summary-bid">Bid: ${bid.quantity} × ${makeDie(bid.face, 'small')}</div>
     <div class="reveal-summary-count">Found: <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>
     <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">
       ${bidMet
-        ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses a die`
-        : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses a die`}
+        ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
+        : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`}
     </div>
     <div class="reveal-loser-line">${loserLine}</div>`;
 
+  hideEl('btn-next-round');
   showEl('reveal-overlay');
 }
 
@@ -523,15 +660,30 @@ function animateElimination(name) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Game over
 // ─────────────────────────────────────────────────────────────────────────────
-socket.on('game_over', ({ winner }) => {
+socket.on('game_over', ({ winner, reason, quitterName }) => {
   hideEl('reveal-overlay');
-  const victoryQuips = [
-    `👑 ${winner} has conquered the table and claimed victory`,
-    `🎲 ${winner} has become statistically unstoppable`,
-    `🔥 ${winner} turned pure luck into total domination`,
-  ];
-  document.getElementById('winner-name').textContent =
-    victoryQuips[Math.floor(Math.random() * victoryQuips.length)];
+  const titleEl = document.getElementById('winner-title');
+  const nameEl  = document.getElementById('winner-name');
+
+  if (reason === 'rage_quit') {
+    titleEl.textContent = 'Game Over';
+    const rageQuips = [
+      `${quitterName} has ended the game and fled the scene`,
+      `${quitterName} has rage quit before the RCMP could arrive`,
+      `${quitterName} ended the game to avoid further emotional damage`,
+      `${quitterName} has ended the game. The dice may now rest`,
+    ];
+    nameEl.textContent = rageQuips[Math.floor(Math.random() * rageQuips.length)];
+  } else {
+    titleEl.textContent = 'Winner!';
+    const victoryQuips = [
+      `👑 ${winner} has conquered the table and claimed victory`,
+      `🎲 ${winner} has become statistically unstoppable`,
+      `🔥 ${winner} turned pure luck into total domination`,
+    ];
+    nameEl.textContent = victoryQuips[Math.floor(Math.random() * victoryQuips.length)];
+  }
+
   setTimeout(() => showScreen('screen-over'), 600);
 });
 
@@ -551,20 +703,19 @@ document.getElementById('btn-ragequit-yes').addEventListener('click', () => {
   socket.emit('rage_quit');
 });
 
-socket.on('lobby_update', state => {
-  gs = state;
-  if (document.getElementById('screen-over').classList.contains('active')) {
-    showScreen('screen-lobby');
-    renderLobby(state);
-  }
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Misc
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('player_disconnected', ({ playerName, gameState: state }) => {
   if (state) gs = state;
-  toast(`${playerName} disconnected — waiting 60s`, 'warn');
+  const disconnectQuips = [
+    `${playerName} lagged out of reality`,
+    `${playerName} lost connection faster than they lost the game`,
+    `${playerName} has been claimed by unstable Wi-Fi`,
+    `${playerName} timed out while searching for better luck`,
+    `${playerName} has been defeated by ping`,
+  ];
+  toast(disconnectQuips[Math.floor(Math.random() * disconnectQuips.length)], 'warn');
   if (gs?.phase === 'playing') renderGame();
 });
 

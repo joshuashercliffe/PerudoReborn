@@ -17,6 +17,7 @@ const ROOM = 'game';
 // Single global game state
 const room = {
   phase: 'lobby', // lobby | playing | reveal | over
+  gameMode: 'standard', // standard | reverse
   players: [],
   host: null,
   currentPlayerIndex: 0,
@@ -26,7 +27,8 @@ const room = {
   isPalifico: false,
   palificoFace: null,
   palificoTriggerPlayer: null,
-  roundNumber: 0
+  roundNumber: 0,
+  revealResolved: false
 };
 
 // sessionToken -> socketId  (for reconnection)
@@ -48,7 +50,8 @@ function publicState() {
       id: p.id,
       name: p.name,
       diceCount: p.diceCount,
-      connected: p.connected
+      connected: p.connected,
+      colorIndex: p.colorIndex ?? 0
     })),
     currentPlayerIndex: room.currentPlayerIndex,
     currentPlayerId: cp?.id ?? null,
@@ -59,7 +62,8 @@ function publicState() {
     palificoFace: room.palificoFace,
     roundNumber: room.roundNumber,
     host: room.host,
-    totalDice: room.players.reduce((s, p) => s + p.diceCount, 0)
+    totalDice: room.players.reduce((s, p) => s + p.diceCount, 0),
+    gameMode: room.gameMode
   };
 }
 
@@ -73,7 +77,8 @@ function resetToLobby() {
   room.currentPlayerIndex = 0;
   room.lastBidderIndex = -1;
   room.roundNumber = 0;
-  room.players.forEach(p => { p.diceCount = 5; p.dice = []; p.connected = true; });
+  const startDice = room.gameMode === 'reverse' ? 1 : 5;
+  room.players.forEach(p => { p.diceCount = startDice; p.dice = []; p.connected = true; });
   if (room.players.length > 0 && !room.players.find(p => p.id === room.host)) {
     room.host = room.players[0].id;
   }
@@ -127,6 +132,7 @@ function startRound() {
   room.currentBid = null;
   room.firstBidOfRound = true;
   room.lastBidderIndex = -1;
+  room.revealResolved = false;
 
   const cp = room.players[room.currentPlayerIndex];
   if (room.palificoTriggerPlayer && room.palificoTriggerPlayer === cp?.id) {
@@ -220,12 +226,22 @@ io.on('connection', socket => {
     socket.to(ROOM).emit('lobby_update', publicState());
   });
 
+  // ── Set game mode ─────────────────────
+  socket.on('set_mode', ({ mode }) => {
+    if (room.phase !== 'lobby') return;
+    if (!['standard', 'reverse'].includes(mode)) return;
+    room.gameMode = mode;
+    io.to(ROOM).emit('lobby_update', publicState());
+  });
+
   // ── Start game ────────────────────────
   socket.on('start_game', () => {
     if (room.phase !== 'lobby') return;
     if (!room.players.find(p => p.id === socket.id)) return;
     if (room.players.length < 2) return socket.emit('start_error', { message: 'Need at least 2 players to start.' });
 
+    const startDice = room.gameMode === 'reverse' ? 1 : 5;
+    room.players.forEach((p, i) => { p.diceCount = startDice; p.dice = []; p.colorIndex = i; });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
     room.palificoTriggerPlayer = null;
@@ -270,7 +286,7 @@ io.on('connection', socket => {
     const bid = room.currentBid;
     let count = 0;
     const revealedDice = room.players.map(p => {
-      const pd = { id: p.id, name: p.name, dice: [...p.dice] };
+      const pd = { id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0 };
       p.dice.forEach(d => {
         if (room.isPalifico) { if (d === bid.face) count++; }
         else                  { if (d === bid.face || d === 1) count++; }
@@ -284,6 +300,7 @@ io.on('connection', socket => {
     const result = {
       revealedDice, bid, count, bidMet,
       isPalifico: room.isPalifico,
+      gameMode: room.gameMode,
       bidderName: bidder.name,
       challengerName: challenger.name,
       loserName: loser.name,
@@ -294,42 +311,70 @@ io.on('connection', socket => {
     setTimeout(() => {
       io.to(ROOM).emit('challenge_result', result);
 
-      // Resolve die loss after reveal animation (4.5s × 2.5)
+      // Resolve die change after reveal animation
       setTimeout(() => {
         const loserIdx = room.players.findIndex(p => p.id === loser.id);
         if (loserIdx === -1) return;
 
         const loserPlayer = room.players[loserIdx];
-        loserPlayer.diceCount--;
 
-        if (loserPlayer.diceCount <= 0) {
-          loserPlayer.diceCount = 0;
-          loserPlayer.dice = [];
+        if (room.gameMode === 'reverse') {
+          // Reverse: loser gains a die; eliminated when exceeding 5
+          loserPlayer.diceCount++;
 
-          io.to(ROOM).emit('player_eliminated', {
-            playerId: loserPlayer.id,
-            playerName: loserPlayer.name
-          });
-          room.players.splice(loserIdx, 1);
+          if (loserPlayer.diceCount > 5) {
+            loserPlayer.diceCount = 0;
+            loserPlayer.dice = [];
 
-          if (room.players.length === 1) {
-            room.phase = 'over';
-            io.to(ROOM).emit('game_over', { winner: room.players[0].name });
-            return;
+            io.to(ROOM).emit('player_eliminated', {
+              playerId: loserPlayer.id,
+              playerName: loserPlayer.name
+            });
+            room.players.splice(loserIdx, 1);
+
+            if (room.players.length === 1) {
+              room.phase = 'over';
+              io.to(ROOM).emit('game_over', { winner: room.players[0].name });
+              return;
+            }
+
+            room.currentPlayerIndex = loserIdx % room.players.length;
+          } else {
+            // Loser goes first next round
+            room.currentPlayerIndex = loserIdx;
           }
-
-          room.palificoTriggerPlayer = null;
-          // Loser eliminated — next player at that position goes first
-          room.currentPlayerIndex = loserIdx % room.players.length;
         } else {
-          loserPlayer.dice = loserPlayer.dice.slice(0, loserPlayer.diceCount);
-          // Loser goes first next round
-          room.currentPlayerIndex = loserIdx;
-          if (loserPlayer.diceCount === 1) room.palificoTriggerPlayer = loserPlayer.id;
+          // Standard: loser loses a die; eliminated at 0
+          loserPlayer.diceCount--;
+
+          if (loserPlayer.diceCount <= 0) {
+            loserPlayer.diceCount = 0;
+            loserPlayer.dice = [];
+
+            io.to(ROOM).emit('player_eliminated', {
+              playerId: loserPlayer.id,
+              playerName: loserPlayer.name
+            });
+            room.players.splice(loserIdx, 1);
+
+            if (room.players.length === 1) {
+              room.phase = 'over';
+              io.to(ROOM).emit('game_over', { winner: room.players[0].name });
+              return;
+            }
+
+            room.palificoTriggerPlayer = null;
+            room.currentPlayerIndex = loserIdx % room.players.length;
+          } else {
+            loserPlayer.dice = loserPlayer.dice.slice(0, loserPlayer.diceCount);
+            room.currentPlayerIndex = loserIdx;
+            if (loserPlayer.diceCount === 1) room.palificoTriggerPlayer = loserPlayer.id;
+          }
         }
 
         room.roundNumber++;
-        setTimeout(() => startRound(), 4000);
+        room.revealResolved = true;
+        io.to(ROOM).emit('reveal_resolved');
       }, 9000);
     }, 1200);
   });
@@ -346,7 +391,11 @@ io.on('connection', socket => {
 
     if (room.players.length <= 1) {
       room.phase = 'over';
-      io.to(ROOM).emit('game_over', { winner: room.players[0]?.name ?? 'Nobody' });
+      io.to(ROOM).emit('game_over', {
+        winner: room.players[0]?.name ?? 'Nobody',
+        reason: 'rage_quit',
+        quitterName: player.name
+      });
       return;
     }
 
@@ -365,9 +414,16 @@ io.on('connection', socket => {
     setTimeout(() => startRound(), 1500);
   });
 
+  // ── Next round (player-triggered) ─────
+  socket.on('next_round', () => {
+    if (room.phase !== 'reveal' || !room.revealResolved) return;
+    if (!room.players.find(p => p.id === socket.id)) return;
+    room.revealResolved = false; // first click wins, prevent double-start
+    startRound();
+  });
+
   // ── Return to lobby after game ────────
   socket.on('return_to_lobby', () => {
-    if (!room.players.find(p => p.id === socket.id)) return;
     if (room.phase !== 'over') return;
     resetToLobby();
     io.to(ROOM).emit('lobby_update', publicState());

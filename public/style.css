@@ -59,7 +59,8 @@ h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 20px; }
 .welcome { color: var(--muted); margin-bottom: 8px; }
 .muted-msg { color: var(--muted); font-size: .82rem; }
 .error-msg { color: var(--danger); font-size: .88rem; margin-top: 10px; }
-.logo { font-size: 4rem; margin-bottom: 8px; }
+.logo { margin-bottom: 8px; line-height: 1; }
+.logo svg { width: 80px; height: 80px; }
 
 /* ── Inputs ──────────────────────────────────────────────────────────── */
 input[type="text"] {
@@ -231,6 +232,22 @@ input[type="text"]::placeholder { color: var(--muted); }
 }
 .dot.empty { visibility: hidden; }
 
+/* ── Dice deal animation ─────────────────────────────────────────────── */
+@keyframes dieFlip {
+  0%   { transform: scale(1.15) rotate(-6deg); opacity: 0.4; }
+  100% { transform: scale(1)    rotate(0deg);  opacity: 1;   }
+}
+.die-rolling { animation: dieFlip 0.07s ease-out both; }
+
+@keyframes dieLand {
+  0%   { transform: scale(1.35) rotate(-10deg); opacity: 0; }
+  45%  { transform: scale(0.88) rotate(3deg);   opacity: 1; }
+  68%  { transform: scale(1.1)  rotate(-1deg);              }
+  85%  { transform: scale(0.97);                            }
+  100% { transform: scale(1)    rotate(0deg);               }
+}
+.die-land { animation: dieLand 0.38s cubic-bezier(.34,1.56,.64,1) forwards; }
+
 /* ── Action UI ───────────────────────────────────────────────────────── */
 #action-ui {
   background: var(--bg-card); border: 1px solid var(--border);
@@ -292,15 +309,33 @@ input[type="text"]::placeholder { color: var(--muted); }
   border-radius: 20px; padding: 32px; max-width: 720px; width: 100%;
   text-align: center; max-height: 90vh; overflow-y: auto;
 }
-#reveal-title { font-size: 1.8rem; color: var(--accent); margin-bottom: 24px; }
-#reveal-all-dice { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-bottom: 24px; }
-.reveal-player-block { text-align: center; }
-.reveal-player-label { font-size: .78rem; color: var(--muted); font-weight: 600; margin-bottom: 7px; }
-.reveal-dice-row { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
-.reveal-summary-bid {
-  font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+#reveal-title { font-size: 1.8rem; color: var(--accent); margin-bottom: 20px; }
+
+/* ── Reveal: player dice row ─────────────────────────────────────────── */
+#reveal-all-dice { margin-bottom: 20px; }
+.reveal-players-row {
+  display: flex; flex-wrap: wrap; align-items: flex-end;
+  gap: 0 8px; margin-bottom: 12px;
 }
+.reveal-player-section { display: flex; flex-direction: column; }
+.reveal-player-name {
+  font-size: .62rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 4px; white-space: nowrap;
+}
+.reveal-player-dice { display: flex; flex-wrap: wrap; gap: 3px; }
+
+/* ── Reveal: bid comparison row ──────────────────────────────────────── */
+.reveal-bid-row {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 6px; padding-top: 10px; border-top: 1px solid var(--border);
+}
+.reveal-bid-label {
+  font-size: .68rem; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+}
+.reveal-bid-dice { display: flex; flex-wrap: wrap; gap: 3px; }
+
+/* ── Reveal: summary ─────────────────────────────────────────────────── */
 .reveal-summary-count { color: var(--muted); margin-bottom: 14px; }
 .reveal-outcome {
   font-size: 1rem; font-weight: 700; padding: 12px 20px;
@@ -308,8 +343,10 @@ input[type="text"]::placeholder { color: var(--muted); }
 }
 .reveal-outcome.win  { background: rgba(34,197,94,.18); color: var(--success); border: 1px solid rgba(34,197,94,.4); }
 .reveal-outcome.lose { background: rgba(239,68,68,.18);  color: var(--danger);  border: 1px solid rgba(239,68,68,.4); }
-.reveal-loser-line { font-size: .9rem; color: var(--muted); }
+.reveal-loser-line { font-size: .9rem; color: var(--muted); margin-bottom: 16px; }
 .reveal-none { font-size: 1.4rem; color: var(--muted); line-height: 46px; }
+
+#btn-next-round { margin-top: 8px; touch-action: manipulation; }
 
 /* ── LIAR Overlay ────────────────────────────────────────────────────── */
 #liar-overlay {
@@ -361,6 +398,47 @@ input[type="text"]::placeholder { color: var(--muted); }
   opacity: 0; animation: fadeInUp .5s .35s ease forwards;
 }
 
+/* ── WOAH Overlay (wild opening bid) ────────────────────────────────── */
+#woah-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 85;
+}
+#woah-phase1 { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+#woah-img {
+  width: 220px; height: 220px; object-fit: contain;
+  filter: invert(1);
+  mix-blend-mode: screen;
+  animation: woahSpin 2s cubic-bezier(.4,0,.6,1) forwards;
+}
+@keyframes woahSpin {
+  0%   { transform: scale(1.1) rotate(0deg);    opacity: 1; }
+  70%  { transform: scale(0.3) rotate(540deg);  opacity: 0.7; }
+  100% { transform: scale(0)   rotate(720deg);  opacity: 0; }
+}
+#woah-label {
+  font-size: 5rem; font-weight: 900; color: #fff; line-height: 1;
+  letter-spacing: 6px;
+  text-shadow: 0 0 40px rgba(255,255,255,.5);
+  animation: woahSpin 2s cubic-bezier(.4,0,.6,1) forwards;
+}
+#woah-phase2 { text-align: center; }
+#woah-above {
+  font-size: 3.2rem; font-weight: 900; color: var(--warning);
+  text-shadow: 0 0 40px rgba(245,158,11,.8);
+  animation: woahReveal .45s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+#woah-send {
+  font-size: 2.4rem; font-weight: 900; color: var(--danger); margin-top: 14px;
+  letter-spacing: 3px;
+  text-shadow: 0 0 40px rgba(239,68,68,.8);
+  opacity: 0; animation: woahReveal .45s .25s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes woahReveal {
+  0%   { transform: scale(0.4) translateY(20px); opacity: 0; }
+  100% { transform: scale(1)   translateY(0);    opacity: 1; }
+}
+
 /* ── Elimination Overlay ─────────────────────────────────────────────── */
 #elimination-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.92);
@@ -391,19 +469,39 @@ input[type="text"]::placeholder { color: var(--muted); }
 }
 
 /* ── Game Over ───────────────────────────────────────────────────────── */
-.winner-trophy { font-size: 5rem; margin-bottom: 12px; animation: spin 1.2s ease-out; }
+.winner-trophy { margin-bottom: 12px; animation: spin 1.2s ease-out; line-height: 1; }
+.winner-trophy svg { width: 88px; height: 88px; }
 @keyframes spin { from { transform: rotate(-360deg) scale(0); } to { transform: rotate(0) scale(1); } }
 .winner-title { color: var(--gold); font-size: 2.5rem; margin-bottom: 8px; }
 .winner-name { font-size: 2rem; font-weight: 900; color: var(--text); margin: 8px 0 32px; }
 
+/* ── Mode Selector (lobby) ───────────────────────────────────────────── */
+#mode-selector { margin: 16px 0 8px; }
+#mode-btns { display: flex; gap: 8px; }
+.mode-btn {
+  flex: 1; padding: 10px 14px; font-size: .88rem; font-weight: 600;
+  background: rgba(255,255,255,.05); border: 2px solid var(--border);
+  border-radius: 10px; color: var(--muted); cursor: pointer;
+  transition: all .15s; touch-action: manipulation;
+}
+.mode-btn:hover { border-color: var(--muted); color: var(--text); }
+.mode-btn.active { border-color: var(--accent); background: rgba(233,69,96,.12); color: var(--text); }
+
+/* ── Mode badge (game screen) ────────────────────────────────────────── */
+#mode-badge {
+  background: rgba(99,102,241,.2); color: #a5b4fc;
+  border: 1px solid rgba(99,102,241,.5); border-radius: 20px;
+  padding: 3px 12px; font-weight: 700; font-size: .75rem; letter-spacing: 1.5px;
+}
+
 /* ── End Game button ─────────────────────────────────────────────────── */
 .btn-end-game {
-  background: transparent; color: var(--muted);
-  border: 1px solid rgba(255,255,255,.12); font-size: .78rem;
+  background: rgba(239,68,68,.12); color: var(--danger);
+  border: 1px solid rgba(239,68,68,.4); font-size: .78rem;
   padding: 7px 18px; width: auto; margin-top: 4px;
   touch-action: manipulation;
 }
-.btn-end-game:hover { color: var(--danger); border-color: var(--danger); background: rgba(239,68,68,.08); }
+.btn-end-game:hover { background: rgba(239,68,68,.22); border-color: var(--danger); }
 
 /* ── Rage Quit Modal ─────────────────────────────────────────────────── */
 #ragequit-overlay {
