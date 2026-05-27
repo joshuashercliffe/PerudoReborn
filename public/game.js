@@ -5,16 +5,32 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const socket = io();
 
-const DICE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+// Dot layout for each die face (3×3 grid, 1=dot, 0=empty)
+const DIE_LAYOUT = {
+  1: [0,0,0, 0,1,0, 0,0,0],
+  2: [0,0,1, 0,0,0, 1,0,0],
+  3: [0,0,1, 0,1,0, 1,0,0],
+  4: [1,0,1, 0,0,0, 1,0,1],
+  5: [1,0,1, 0,1,0, 1,0,1],
+  6: [1,0,1, 1,0,1, 1,0,1],
+};
+
+// Text name for toast messages
+const FACE_NAME = ['', '1s', '2s', '3s', '4s', '5s', '6s'];
+
+function makeDie(value, extraClass = '') {
+  const layout = DIE_LAYOUT[value] || DIE_LAYOUT[1];
+  const dots = layout.map(on => `<span class="dot${on ? '' : ' empty'}"></span>`).join('');
+  return `<div class="die${extraClass ? ' ' + extraClass : ''}">${dots}</div>`;
+}
 
 // Client state
-let myId       = null;
-let myName     = null;
-let myRoom     = null;
-let gs         = null;   // latest public game state from server
-let myDice     = [];
-let selQty     = 1;
-let selFace    = 2;
+let myId    = null;
+let myName  = null;
+let gs      = null;
+let myDice  = [];
+let selQty  = 1;
+let selFace = 2;
 
 socket.on('connect',   () => { myId = socket.id; });
 socket.on('reconnect', () => { myId = socket.id; });
@@ -23,8 +39,7 @@ socket.on('reconnect', () => { myId = socket.id; });
 // Utility
 // ─────────────────────────────────────────────────────────────────────────────
 function esc(s) {
-  return String(s ?? '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function showScreen(id) {
@@ -32,8 +47,8 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
-function showEl(id)  { const el = typeof id === 'string' ? document.getElementById(id) : id; el?.classList.remove('hidden'); }
-function hideEl(id)  { const el = typeof id === 'string' ? document.getElementById(id) : id; el?.classList.add('hidden');    }
+function showEl(id) { const el = typeof id === 'string' ? document.getElementById(id) : id; el?.classList.remove('hidden'); }
+function hideEl(id) { const el = typeof id === 'string' ? document.getElementById(id) : id; el?.classList.add('hidden');    }
 
 function toast(msg, type = '') {
   const t = document.createElement('div');
@@ -42,19 +57,16 @@ function toast(msg, type = '') {
   document.getElementById('toast-container').appendChild(t);
   requestAnimationFrame(() => {
     t.classList.add('show');
-    setTimeout(() => {
-      t.classList.remove('show');
-      setTimeout(() => t.remove(), 300);
-    }, 2800);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2800);
   });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Client-side bid validation (mirrors server, for UX only)
+// Client-side bid validation (mirrors server — for UX hints only)
 // ─────────────────────────────────────────────────────────────────────────────
 function clientValidate(state, qty, face) {
   if (!Number.isInteger(face) || face < 1 || face > 6) return { ok: false, why: 'Invalid face' };
-  if (!Number.isInteger(qty) || qty < 1)               return { ok: false, why: 'Qty must be ≥ 1' };
+  if (!Number.isInteger(qty)  || qty  < 1)             return { ok: false, why: 'Qty must be ≥ 1' };
 
   const cur = state.currentBid;
   if (!cur) {
@@ -77,7 +89,7 @@ function clientValidate(state, qty, face) {
   }
   if (qty > cur.quantity) return { ok: true };
   if (qty === cur.quantity && face > cur.face) return { ok: true };
-  return { ok: false, why: 'Must be strictly higher (more qty, or same qty + higher face)' };
+  return { ok: false, why: 'Must be strictly higher' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,73 +102,36 @@ document.getElementById('name-submit').addEventListener('click', submitName);
 function submitName() {
   const n = nameInput.value.trim();
   if (!n) { nameInput.focus(); return; }
+  hideEl('name-error');
   socket.emit('set_name', { name: n });
 }
 
-socket.on('name_set', ({ name }) => {
-  myName = name;
-  document.getElementById('menu-player-name').textContent = name;
-  showScreen('screen-menu');
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen: Menu
-// ─────────────────────────────────────────────────────────────────────────────
-document.getElementById('btn-create').addEventListener('click', () => socket.emit('create_game'));
-
-document.getElementById('btn-join-toggle').addEventListener('click', () => {
-  const f = document.getElementById('join-form');
-  f.classList.toggle('hidden');
-  if (!f.classList.contains('hidden')) document.getElementById('room-code-input').focus();
-});
-
-document.getElementById('room-code-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') submitJoin();
-  hideEl('join-error');
-});
-
-document.getElementById('btn-join-submit').addEventListener('click', submitJoin);
-
-function submitJoin() {
-  const code = document.getElementById('room-code-input').value.trim().toUpperCase();
-  if (!code) return;
-  socket.emit('join_game', { roomCode: code });
-}
-
+// Server rejected (game in progress)
 socket.on('join_error', ({ message }) => {
-  const el = document.getElementById('join-error');
+  const el = document.getElementById('name-error');
   el.textContent = message;
   showEl(el);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Screen: Lobby
+// Lobby
 // ─────────────────────────────────────────────────────────────────────────────
-socket.on('game_created', ({ roomCode, gameState }) => {
-  myRoom = roomCode;
-  gs = gameState;
-  enterLobby(gameState);
-});
-
-socket.on('joined_game', ({ roomCode, gameState }) => {
-  myRoom = roomCode;
-  gs = gameState;
-  enterLobby(gameState);
+socket.on('joined_lobby', state => {
+  myName = socket.playerName; // may be undefined; we rely on state
+  gs = state;
+  showScreen('screen-lobby');
+  renderLobby(state);
 });
 
 socket.on('lobby_update', state => {
   gs = state;
-  renderLobby(state);
+  if (document.getElementById('screen-lobby').classList.contains('active') ||
+      document.getElementById('screen-over').classList.contains('active')) {
+    renderLobby(state);
+  }
 });
 
-function enterLobby(state) {
-  showScreen('screen-lobby');
-  document.getElementById('lobby-code').textContent = state.code;
-  renderLobby(state);
-}
-
 function renderLobby(state) {
-  // Player list
   document.getElementById('lobby-players').innerHTML = state.players.map(p => {
     const isHost = p.id === state.host;
     const isMe   = p.id === myId;
@@ -169,7 +144,6 @@ function renderLobby(state) {
     </div>`;
   }).join('');
 
-  // Start button
   const startBtn = document.getElementById('btn-start');
   const hint     = document.getElementById('start-hint');
   if (state.host === myId) {
@@ -179,7 +153,7 @@ function renderLobby(state) {
       hint.textContent = 'Waiting for at least 2 players…';
     } else {
       startBtn.disabled = false;
-      hint.textContent = `${state.players.length} player${state.players.length > 1 ? 's' : ''} ready — good to go!`;
+      hint.textContent = `${state.players.length} players ready — let's go!`;
     }
   } else {
     hideEl(startBtn);
@@ -187,17 +161,28 @@ function renderLobby(state) {
   }
 }
 
-document.getElementById('btn-copy-code').addEventListener('click', () => {
-  const code = document.getElementById('lobby-code').textContent;
-  navigator.clipboard?.writeText(code).then(() => toast('Code copied!', 'ok')).catch(() => toast(code));
-});
-
 document.getElementById('btn-start').addEventListener('click', () => socket.emit('start_game'));
-
 socket.on('start_error', ({ message }) => toast(message, 'error'));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Screen: Game — round start
+// Face picker — built with CSS dice
+// ─────────────────────────────────────────────────────────────────────────────
+(function initFacePicker() {
+  const picker = document.getElementById('face-picker');
+  picker.innerHTML = [1,2,3,4,5,6].map(f =>
+    `<button class="face-btn" data-face="${f}">${makeDie(f)}</button>`
+  ).join('');
+
+  picker.addEventListener('click', e => {
+    const btn = e.target.closest('.face-btn');
+    if (!btn || btn.disabled) return;
+    selFace = parseInt(btn.dataset.face, 10);
+    refreshBidControls();
+  });
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Game — round start
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('round_start', state => {
   gs = state;
@@ -217,6 +202,7 @@ socket.on('your_dice', ({ dice }) => {
 function renderGame() {
   renderPlayersBar();
   renderBidDisplay();
+  renderQuickMaths();
   renderStatus();
   renderMyDice();
   renderActionUI();
@@ -226,7 +212,6 @@ function renderPlayersBar() {
   document.getElementById('players-bar').innerHTML = gs.players.map(p => {
     const active = p.id === gs.currentPlayerId;
     const me     = p.id === myId;
-    const diceIcons = Array(p.diceCount).fill('◆').join(' ');
     return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!p.connected ? ' disconnected' : ''}">
       <div class="chip-name" title="${esc(p.name)}">${esc(p.name)}${me ? ' ★' : ''}</div>
       <div class="chip-dice">${p.diceCount} 🎲</div>
@@ -243,13 +228,22 @@ function renderBidDisplay() {
   const byEl  = document.getElementById('bid-display-by');
   if (gs.currentBid) {
     const { quantity, face } = gs.currentBid;
-    valEl.textContent = `${quantity} × ${DICE[face]}`;
+    valEl.innerHTML = `<span class="bid-qty">${quantity}</span><span class="bid-x">×</span>${makeDie(face, 'bid-die')}`;
     valEl.classList.add('pop');
     valEl.addEventListener('animationend', () => valEl.classList.remove('pop'), { once: true });
+    byEl.textContent = 'bid in play';
   } else {
-    valEl.textContent = '—';
+    valEl.innerHTML = '<span class="bid-qty empty">—</span>';
+    byEl.textContent = 'no bid yet';
   }
-  byEl.textContent = gs.currentBid ? `bid in play` : 'no bid yet';
+}
+
+function renderQuickMaths() {
+  const total = gs.players.reduce((s, p) => s + p.diceCount, 0);
+  const qm = total / 3;
+  const display = Number.isInteger(qm) ? String(qm) : qm.toFixed(2);
+  document.getElementById('qm-value').textContent = display;
+  document.getElementById('total-dice-note').textContent = ` (${total} dice in play)`;
 }
 
 function renderStatus() {
@@ -261,13 +255,10 @@ function renderStatus() {
     bar.textContent = `${gs.currentPlayerName}'s turn…`;
     bar.className = 'waiting';
   }
-  const total = gs.players.reduce((s, p) => s + p.diceCount, 0);
-  document.getElementById('total-dice-note').textContent = ` (${total} dice in play)`;
 }
 
 function renderMyDice() {
-  document.getElementById('my-dice').innerHTML =
-    myDice.map(d => `<div class="die">${DICE[d]}</div>`).join('');
+  document.getElementById('my-dice').innerHTML = myDice.map(d => makeDie(d)).join('');
 }
 
 function renderActionUI() {
@@ -277,7 +268,6 @@ function renderActionUI() {
   showEl('action-ui');
   gs.isPalifico ? showEl('palifico-notice') : hideEl('palifico-notice');
 
-  // Sensible default quantity for this bid
   if (gs.currentBid) {
     selQty  = gs.currentBid.quantity;
     selFace = gs.currentBid.face;
@@ -294,18 +284,9 @@ function renderActionUI() {
 document.getElementById('qty-down').addEventListener('click', () => { selQty = Math.max(1, selQty - 1); refreshBidControls(); });
 document.getElementById('qty-up').addEventListener('click',   () => { selQty++; refreshBidControls(); });
 
-document.querySelectorAll('.face-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (btn.disabled) return;
-    selFace = parseInt(btn.dataset.face, 10);
-    refreshBidControls();
-  });
-});
-
 function refreshBidControls() {
   document.getElementById('qty-val').textContent = selQty;
 
-  // Face buttons
   document.querySelectorAll('.face-btn').forEach(btn => {
     const f = parseInt(btn.dataset.face, 10);
     btn.classList.toggle('selected', f === selFace);
@@ -313,18 +294,15 @@ function refreshBidControls() {
     if (gs.isPalifico && gs.palificoFace !== null) {
       btn.disabled = (f !== gs.palificoFace);
     } else if (gs.firstBidOfRound) {
-      btn.disabled = (f === 1);   // can't open with 1s
+      btn.disabled = (f === 1);
     } else {
       btn.disabled = false;
     }
   });
 
-  // Validate
   const v = clientValidate(gs, selQty, selFace);
   document.getElementById('bid-hint-msg').textContent = v.ok ? '' : v.why;
   document.getElementById('btn-bid').disabled = !v.ok;
-
-  // Challenge
   document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
 }
 
@@ -337,17 +315,34 @@ document.getElementById('btn-challenge').addEventListener('click', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bid made (someone else bid)
+// Bid made
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('bid_made', ({ bid, bidderName, gameState: state }) => {
   gs = state;
   renderGame();
   if (bidderName !== myName) {
-    toast(`${bidderName} bid ${bid.quantity} × ${DICE[bid.face]}`);
+    toast(`${bidderName} bid ${bid.quantity} ${FACE_NAME[bid.face]}`);
   }
 });
 
 socket.on('bid_error', ({ message }) => toast(message, 'error'));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LIAR called — show dramatic overlay for ~1.2s before reveal
+// ─────────────────────────────────────────────────────────────────────────────
+socket.on('liar_called', ({ challengerName }) => {
+  const overlay = document.getElementById('liar-overlay');
+  document.getElementById('liar-caller').textContent = `${challengerName} called it!`;
+
+  // Force re-trigger animation by replacing element
+  const liarText = document.getElementById('liar-text');
+  liarText.style.animation = 'none';
+  void liarText.offsetWidth; // reflow
+  liarText.style.animation = '';
+
+  showEl(overlay);
+  setTimeout(() => hideEl(overlay), 1200);
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Challenge reveal
@@ -360,13 +355,12 @@ socket.on('challenge_result', result => {
 function showReveal(r) {
   const { revealedDice, bid, count, bidMet, isPalifico, bidderName, challengerName, loserName } = r;
 
-  // All dice
   document.getElementById('reveal-all-dice').innerHTML = revealedDice.map(pd => {
     const isMe = pd.id === myId;
     const diceHtml = pd.dice.map(d => {
-      const wild = !isPalifico && d === 1 && bid.face !== 1;
+      const wild  = !isPalifico && d === 1 && bid.face !== 1;
       const match = d === bid.face;
-      return `<div class="die small${(wild || match) ? ' highlighted' : ''}">${DICE[d]}</div>`;
+      return makeDie(d, `small${(wild || match) ? ' highlighted' : ''}`);
     }).join('');
     return `<div class="reveal-player-block">
       <div class="reveal-player-label">${esc(pd.name)}${isMe ? ' (you)' : ''}</div>
@@ -374,11 +368,10 @@ function showReveal(r) {
     </div>`;
   }).join('');
 
-  // Summary
-  const wildNote = isPalifico ? ' (no wilds — Palifico)' : ` (1s are wild)`;
+  const wildNote = isPalifico ? ' (no wilds — Palifico)' : ' (1s are wild)';
   document.getElementById('reveal-summary').innerHTML = `
-    <div class="reveal-summary-bid">Bid: ${bid.quantity} × ${DICE[bid.face]}</div>
-    <div class="reveal-summary-count">Found: <strong>${count}</strong> ${DICE[bid.face]}${wildNote}</div>
+    <div class="reveal-summary-bid">Bid: ${bid.quantity} × ${makeDie(bid.face, 'small')}</div>
+    <div class="reveal-summary-count">Found: <strong>${count}</strong> ${FACE_NAME[bid.face]}${wildNote}</div>
     <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">
       ${bidMet
         ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses a die.`
@@ -390,40 +383,35 @@ function showReveal(r) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Player eliminated
+// Elimination
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('player_eliminated', ({ playerName }) => {
   animateElimination(playerName);
 });
 
 function animateElimination(name) {
-  document.getElementById('elimination-name').textContent = `${name} eliminated!`;
+  document.getElementById('elimination-name').textContent = `${name} has been sent HOME!`;
 
   const container = document.getElementById('dice-particles');
   container.innerHTML = '';
 
-  for (let i = 0; i < 22; i++) {
-    const p   = document.createElement('div');
+  const DICE_EMOJI = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+  for (let i = 0; i < 24; i++) {
+    const p = document.createElement('div');
     p.className = 'dice-particle';
-    p.textContent = DICE[Math.floor(Math.random() * 6) + 1];
+    p.textContent = DICE_EMOJI[Math.floor(Math.random() * 6)];
 
-    const angle    = Math.random() * Math.PI * 2;
-    const dist     = 90 + Math.random() * 220;
-    const ex       = Math.cos(angle) * dist;
-    const ey       = Math.sin(angle) * dist;
-    const dur      = (.7 + Math.random() * .8).toFixed(2);
-    const delay    = (Math.random() * .35).toFixed(2);
-
-    p.style.setProperty('--ex',    `${ex}px`);
-    p.style.setProperty('--ey',    `${ey}px`);
-    p.style.setProperty('--dur',   `${dur}s`);
-    p.style.setProperty('--delay', `${delay}s`);
-
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 100 + Math.random() * 240;
+    p.style.setProperty('--ex',    `${Math.cos(angle) * dist}px`);
+    p.style.setProperty('--ey',    `${Math.sin(angle) * dist}px`);
+    p.style.setProperty('--dur',   `${(.7 + Math.random() * .9).toFixed(2)}s`);
+    p.style.setProperty('--delay', `${(Math.random() * .35).toFixed(2)}s`);
     container.appendChild(p);
   }
 
   showEl('elimination-overlay');
-  setTimeout(() => hideEl('elimination-overlay'), 3000);
+  setTimeout(() => hideEl('elimination-overlay'), 3200);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -432,21 +420,28 @@ function animateElimination(name) {
 socket.on('game_over', ({ winner }) => {
   hideEl('reveal-overlay');
   document.getElementById('winner-name').textContent = winner;
-  setTimeout(() => showScreen('screen-over'), 500);
+  setTimeout(() => showScreen('screen-over'), 600);
 });
 
 document.getElementById('btn-play-again').addEventListener('click', () => {
-  gs = null; myDice = []; myRoom = null;
-  showScreen('screen-menu');
+  socket.emit('return_to_lobby');
+});
+
+socket.on('lobby_update', state => {
+  gs = state;
+  if (document.getElementById('screen-over').classList.contains('active')) {
+    showScreen('screen-lobby');
+    renderLobby(state);
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Misc events
+// Misc
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('player_disconnected', ({ playerName, gameState: state }) => {
   if (state) gs = state;
   toast(`${playerName} disconnected`, 'warn');
-  if (gs && gs.phase === 'playing') renderGame();
+  if (gs?.phase === 'playing') renderGame();
 });
 
 socket.on('disconnect', () => toast('Disconnected from server…', 'error'));

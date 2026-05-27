@@ -8,10 +8,16 @@
 </head>
 <body>
 
-  <!-- Elimination overlay (fixed, on top of everything) -->
+  <!-- Elimination overlay -->
   <div id="elimination-overlay" class="hidden">
     <div id="elimination-name"></div>
     <div id="dice-particles"></div>
+  </div>
+
+  <!-- LIAR overlay -->
+  <div id="liar-overlay" class="hidden">
+    <div id="liar-text">LIAR!</div>
+    <div id="liar-caller"></div>
   </div>
 
   <!-- Toast container -->
@@ -25,28 +31,10 @@
       <div class="logo">⚅</div>
       <h1>Perudo</h1>
       <p class="tagline">Liar's Dice</p>
-      <input id="name-input" type="text" placeholder="Enter your name…" maxlength="20" autocomplete="off" spellcheck="false">
-      <button id="name-submit" class="btn btn-primary">Continue →</button>
-    </div>
-  </div>
-
-  <!-- ═══════════════════════════════════════ -->
-  <!-- SCREEN: Menu                            -->
-  <!-- ═══════════════════════════════════════ -->
-  <div id="screen-menu" class="screen">
-    <div class="card">
-      <p class="welcome">Welcome, <strong id="menu-player-name"></strong>!</p>
-      <h2>What would you like to do?</h2>
-      <div class="menu-buttons">
-        <button id="btn-create" class="btn btn-primary">Create Game</button>
-        <button id="btn-join-toggle" class="btn btn-secondary">Join Game</button>
-      </div>
-      <div id="join-form" class="hidden">
-        <input id="room-code-input" type="text" placeholder="Room code (e.g. A3K9X)…" maxlength="6"
-               autocomplete="off" spellcheck="false" style="text-transform:uppercase">
-        <button id="btn-join-submit" class="btn btn-primary">Join →</button>
-        <p id="join-error" class="error-msg hidden"></p>
-      </div>
+      <input id="name-input" type="text" placeholder="Enter your name to join…" maxlength="20"
+             autocomplete="off" spellcheck="false">
+      <button id="name-submit" class="btn btn-primary">Join Lobby →</button>
+      <p id="name-error" class="error-msg hidden"></p>
     </div>
   </div>
 
@@ -55,13 +43,8 @@
   <!-- ═══════════════════════════════════════ -->
   <div id="screen-lobby" class="screen">
     <div class="card">
-      <h2>Waiting Room</h2>
-      <div class="room-code-box">
-        <span class="room-code-label">Room Code</span>
-        <span id="lobby-code" class="room-code-value">—</span>
-        <button id="btn-copy-code" class="btn-icon" title="Copy code">⎘</button>
-      </div>
-      <p class="lobby-hint" id="lobby-hint-msg">Share this code with friends!</p>
+      <h2>Lobby</h2>
+      <p class="lobby-hint">Waiting for players — share this page to invite friends!</p>
       <div id="lobby-players"></div>
       <button id="btn-start" class="btn btn-primary hidden">Start Game</button>
       <p id="start-hint" class="muted-msg"></p>
@@ -73,29 +56,31 @@
   <!-- ═══════════════════════════════════════ -->
   <div id="screen-game" class="screen">
 
-    <!-- Top bar: players -->
     <div id="players-bar"></div>
 
-    <!-- Center content -->
     <div id="game-center">
 
-      <!-- Round / Palifico banner -->
       <div id="round-banner">
         <span id="round-label">Round 1</span>
         <span id="palifico-badge" class="hidden">🔥 PALIFICO</span>
       </div>
 
-      <!-- Current bid -->
-      <div id="bid-display">
-        <div class="bid-display-label">Current Bid</div>
-        <div id="bid-display-value" class="bid-display-value">—</div>
-        <div id="bid-display-by" class="bid-display-by"></div>
+      <!-- Bid + Quick Maths side by side -->
+      <div id="info-row">
+        <div id="bid-display">
+          <div class="info-label">Current Bid</div>
+          <div id="bid-display-value" class="bid-display-value"></div>
+          <div id="bid-display-by" class="info-sub"></div>
+        </div>
+        <div id="quick-maths">
+          <div class="info-label">Quick Maths</div>
+          <div id="qm-value" class="qm-value">—</div>
+          <div class="info-sub">avg per face (÷3)</div>
+        </div>
       </div>
 
-      <!-- Status -->
       <div id="status-bar"></div>
 
-      <!-- My dice -->
       <div id="my-dice-section">
         <div class="section-label">Your Dice
           <span id="total-dice-note" class="muted-msg"></span>
@@ -103,7 +88,7 @@
         <div id="my-dice"></div>
       </div>
 
-      <!-- Action UI (only visible on your turn) -->
+      <!-- Action UI — only shown on your turn -->
       <div id="action-ui" class="hidden">
         <div id="palifico-notice" class="hidden">🔥 PALIFICO ROUND — no wilds, same face only</div>
         <div id="bid-controls">
@@ -117,29 +102,22 @@
           </div>
           <div class="control-group">
             <label>Face</label>
-            <div id="face-picker">
-              <button class="face-btn" data-face="1">⚀</button>
-              <button class="face-btn" data-face="2">⚁</button>
-              <button class="face-btn" data-face="3">⚂</button>
-              <button class="face-btn" data-face="4">⚃</button>
-              <button class="face-btn" data-face="5">⚄</button>
-              <button class="face-btn" data-face="6">⚅</button>
-            </div>
+            <div id="face-picker"><!-- populated by JS --></div>
           </div>
         </div>
         <div id="bid-hint-msg"></div>
         <div id="action-buttons">
           <button id="btn-bid" class="btn btn-primary" disabled>Make Bid</button>
-          <button id="btn-challenge" class="btn btn-danger" disabled>⚡ Challenge!</button>
+          <button id="btn-challenge" class="btn btn-danger" disabled>Liar</button>
         </div>
       </div>
 
     </div><!-- /#game-center -->
 
-    <!-- Challenge reveal overlay (inside game screen) -->
+    <!-- Reveal overlay -->
     <div id="reveal-overlay" class="hidden">
       <div id="reveal-panel">
-        <h2 id="reveal-title">⚡ Challenge!</h2>
+        <h2 id="reveal-title">The Dice Are Revealed</h2>
         <div id="reveal-all-dice"></div>
         <div id="reveal-summary"></div>
       </div>
