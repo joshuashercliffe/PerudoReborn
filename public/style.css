@@ -280,12 +280,13 @@ input[type="text"]::placeholder { color: var(--muted); }
 .die3-f6 { background: #d8d8d8; transform: rotateY(180deg) translateZ(34px); }
 
 @keyframes die3Drop {
-  0%   { transform: translateY(-22px) scale(1.15); opacity: 0.7; }
-  60%  { transform: translateY(5px) scale(0.96);  opacity: 1; }
-  80%  { transform: translateY(-3px) scale(1.02); }
-  100% { transform: translateY(0)   scale(1); }
+  0%   { transform: translateY(-75vh) scale(0.7); opacity: 0; }
+  65%  { transform: translateY(10px)  scale(1.05); opacity: 1; }
+  82%  { transform: translateY(-5px)  scale(0.98); }
+  92%  { transform: translateY(3px)   scale(1.01); }
+  100% { transform: translateY(0)     scale(1); }
 }
-.die3-landing { animation: die3Drop 0.45s cubic-bezier(.22,1,.36,1) both; }
+.die3-landing { animation: die3Drop 0.6s cubic-bezier(.22,1,.36,1) both; }
 
 /* ── Action UI ───────────────────────────────────────────────────────── */
 #action-ui {

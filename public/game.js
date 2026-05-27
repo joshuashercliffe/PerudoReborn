@@ -491,7 +491,7 @@ function dealMyDice() {
       c.style.transform = FACE3_TRANSFORMS[finalDice[i]];
     });
     wraps.forEach((w, i) => {
-      w.style.animationDelay = `${i * 55}ms`;
+      w.style.animationDelay = `${i * 90}ms`;
       w.classList.add('die3-landing');
     });
   }));
