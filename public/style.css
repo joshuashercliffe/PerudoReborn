@@ -412,6 +412,34 @@ input[type="text"]::placeholder { color: var(--muted); }
 #liar-caller { font-size: 1.1rem; color: var(--muted); margin-top: 16px; opacity: 0; animation: fadeInUp .4s .25s ease forwards; }
 @keyframes fadeInUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
 
+/* ── Autoliar announcement overlay ──────────────────────────────────── */
+#autoliar-overlay {
+  position: fixed; top: 28%; left: 50%; transform: translateX(-50%);
+  background: rgba(13,13,26,.93); border: 1px solid rgba(167,139,250,.35);
+  border-radius: 18px; padding: 18px 40px;
+  display: flex; flex-direction: column; align-items: center;
+  z-index: 85; pointer-events: none; white-space: nowrap;
+}
+#autoliar-overlay-text {
+  font-size: 2.2rem; font-weight: 900; color: #a78bfa; line-height: 1;
+  letter-spacing: 3px;
+  text-shadow: 0 0 28px rgba(167,139,250,.85), 0 0 60px rgba(167,139,250,.35);
+  animation: autoliarPop 2s ease forwards;
+}
+#autoliar-overlay-sub {
+  font-size: .88rem; color: var(--muted); margin-top: 8px;
+  opacity: 0; animation: fadeInUp .3s .18s ease forwards;
+}
+@keyframes autoliarPop {
+  0%   { transform: scale(0.25) rotate(-6deg); opacity: 0; }
+  18%  { transform: scale(1.25) rotate(3deg);  opacity: 1; }
+  32%  { transform: scale(0.97) rotate(-1deg); opacity: 1; }
+  46%  { transform: scale(1.04);               opacity: 1; }
+  60%  { transform: scale(1);                  opacity: 1; }
+  80%  { transform: scale(1);                  opacity: 1; }
+  100% { transform: scale(1.08);               opacity: 0; }
+}
+
 /* ── Palifico Overlay ────────────────────────────────────────────────── */
 #palifico-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.88);
@@ -552,6 +580,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   border-color: rgba(220,38,38,.55);
   box-shadow: 0 0 10px rgba(220,38,38,.3);
   animation: autoLiarPulse 1.6s ease-in-out infinite;
+  cursor: default;
 }
 @keyframes autoLiarPulse {
   0%, 100% { box-shadow: 0 0 10px rgba(220,38,38,.3); }

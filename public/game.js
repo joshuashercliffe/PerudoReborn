@@ -507,9 +507,11 @@ function renderAutoLiarBtn() {
     if (myAutoLiar) {
       btn.textContent = '✓ AUTOLIAR LOCKED';
       btn.classList.add('autoliar-locked');
+      btn.disabled = true;
     } else {
       btn.textContent = '🔒 Lock in Autoliar';
       btn.classList.remove('autoliar-locked');
+      btn.disabled = false;
     }
   } else {
     hideEl('autoliar-section');
@@ -857,17 +859,26 @@ function animateElimination(name) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Game over
 // ─────────────────────────────────────────────────────────────────────────────
-socket.on('auto_liar_update', ({ playerId, playerName, active }) => {
+socket.on('auto_liar_update', ({ playerId, playerName }) => {
   if (playerId === myId) {
-    myAutoLiar = active;
+    myAutoLiar = true;
     if (gs) renderAutoLiarBtn();
   }
-  if (active) {
-    toast(`${playerName} has locked in AUTOLIAR`, 'autoliar');
-  } else {
-    toast(`${playerName} cancelled Autoliar`);
-  }
+  showAutoLiarOverlay(playerName);
 });
+
+function showAutoLiarOverlay(playerName) {
+  const overlay = document.getElementById('autoliar-overlay');
+  document.getElementById('autoliar-overlay-sub').textContent = `${playerName} has locked it in`;
+  const textEl = document.getElementById('autoliar-overlay-text');
+  [textEl, document.getElementById('autoliar-overlay-sub')].forEach(el => {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
+  showEl(overlay);
+  setTimeout(() => hideEl(overlay), 2000);
+}
 
 socket.on('game_over', ({ winner, reason, quitterName }) => {
   hideEl('reveal-overlay');

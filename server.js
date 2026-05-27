@@ -71,7 +71,18 @@ function publicState() {
   };
 }
 
+function purgeDead() {
+  room.players = room.players.filter(p => {
+    if (!p.connected) {
+      if (p.disconnectTimer) { clearTimeout(p.disconnectTimer); p.disconnectTimer = null; }
+      return false;
+    }
+    return true;
+  });
+}
+
 function resetToLobby() {
+  purgeDead(); // drop any disconnected players so they don't carry over
   room.phase = 'lobby';
   room.currentBid = null;
   room.firstBidOfRound = true;
@@ -84,7 +95,7 @@ function resetToLobby() {
   room.roundNumber = 0;
   room.autoLiarPlayerId = null;
   const startDice = room.gameMode === 'reverse' ? 1 : 5;
-  room.players.forEach(p => { p.diceCount = startDice; p.dice = []; p.connected = true; });
+  room.players.forEach(p => { p.diceCount = startDice; p.dice = []; });
   if (room.players.length > 0 && !room.players.find(p => p.id === room.host)) {
     room.host = room.players[0].id;
   }
@@ -401,6 +412,7 @@ io.on('connection', socket => {
   socket.on('start_game', () => {
     if (room.phase !== 'lobby') return;
     if (!room.players.find(p => p.id === socket.id)) return;
+    purgeDead(); // remove anyone who dropped during the lobby
     if (room.players.length < 2) return socket.emit('start_error', { message: 'Need at least 2 players to start.' });
 
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
@@ -453,13 +465,9 @@ io.on('connection', socket => {
     // Can't lock autoliar on your own turn
     if (room.players[room.currentPlayerIndex]?.id === socket.id) return;
 
-    if (room.autoLiarPlayerId === socket.id) {
-      room.autoLiarPlayerId = null;
-      io.to(ROOM).emit('auto_liar_update', { playerId: socket.id, playerName: p.name, active: false });
-    } else {
-      room.autoLiarPlayerId = socket.id;
-      io.to(ROOM).emit('auto_liar_update', { playerId: socket.id, playerName: p.name, active: true });
-    }
+    if (room.autoLiarPlayerId === socket.id) return; // already locked — ignore
+    room.autoLiarPlayerId = socket.id;
+    io.to(ROOM).emit('auto_liar_update', { playerId: socket.id, playerName: p.name, active: true });
   });
 
   // ── Challenge (Liar) ──────────────────
@@ -478,31 +486,12 @@ io.on('connection', socket => {
 
     const player = room.players[idx];
     room.players.splice(idx, 1);
-    io.to(ROOM).emit('player_eliminated', { playerId: socket.id, playerName: player.name });
-
-    if (room.players.length <= 1) {
-      room.phase = 'over';
-      io.to(ROOM).emit('game_over', {
-        winner: room.players[0]?.name ?? 'Nobody',
-        reason: 'rage_quit',
-        quitterName: player.name
-      });
-      return;
-    }
-
-    // Keep lastBidderIndex valid
-    if (room.lastBidderIndex >= room.players.length) room.lastBidderIndex = -1;
-    if (room.lastBidderIndex > idx) room.lastBidderIndex--;
-
-    // Advance turn pointer
-    if (idx < room.currentPlayerIndex) {
-      room.currentPlayerIndex--;
-    } else {
-      room.currentPlayerIndex = room.currentPlayerIndex % room.players.length;
-    }
-
-    room.roundNumber++;
-    setTimeout(() => startRound(), 1500);
+    room.phase = 'over';
+    io.to(ROOM).emit('game_over', {
+      winner: room.players[0]?.name ?? 'Nobody',
+      reason: 'rage_quit',
+      quitterName: player.name
+    });
   });
 
   // ── Next round (player-triggered) ─────
@@ -539,7 +528,7 @@ io.on('connection', socket => {
     player.connected = false;
 
     if (room.phase === 'lobby' || room.phase === 'over') {
-      // Give 60s grace in lobby/over too so a phone lock doesn't kick them
+      // 30s grace in lobby so a phone screen-lock doesn't immediately kick them
       io.to(ROOM).emit('lobby_update', publicState());
 
       player.disconnectTimer = setTimeout(() => {
@@ -552,11 +541,10 @@ io.on('connection', socket => {
         io.to(ROOM).emit('lobby_update', publicState());
       }, 60000);
     } else {
-      // In-game: mark disconnected, give 60s to reconnect before eliminating
+      // In-game: 60s to reconnect before being eliminated
       io.to(ROOM).emit('player_disconnected', { playerName: player.name, gameState: publicState() });
 
       player.disconnectTimer = setTimeout(() => {
-        // If player reconnected their id changed — findIndex returns -1 and we bail
         const stillIdx = room.players.findIndex(p => p.id === socket.id);
         if (stillIdx === -1 || room.players[stillIdx].connected) return;
 
