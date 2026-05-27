@@ -95,11 +95,18 @@ function validateBid(qty, face) {
   const cur = room.currentBid;
 
   if (!cur) {
-    if (face === 1) return { valid: false, reason: 'Cannot open a round with 1s' };
+    if (!room.isPalifico && face === 1) return { valid: false, reason: 'Cannot open a round with 1s' };
     return { valid: true };
   }
 
   if (room.isPalifico) {
+    const cp = room.players[room.currentPlayerIndex];
+    if (cp && cp.diceCount === 1) {
+      // Player with 1 die uses standard raise rules (may change face)
+      if (qty > cur.quantity) return { valid: true };
+      if (qty === cur.quantity && face > cur.face) return { valid: true };
+      return { valid: false, reason: 'Must raise quantity or bid same quantity of higher face' };
+    }
     if (room.palificoFace !== null && face !== room.palificoFace)
       return { valid: false, reason: `Palifico: must bid on ${room.palificoFace}s` };
     if (qty <= cur.quantity) return { valid: false, reason: 'Palifico: must raise quantity' };
@@ -460,7 +467,7 @@ io.on('connection', socket => {
         if (stillIdx === -1 || room.players[stillIdx].connected) return;
 
         room.players.splice(stillIdx, 1);
-        io.to(ROOM).emit('player_eliminated', { playerId: socket.id, playerName: player.name });
+        io.to(ROOM).emit('player_eliminated', { playerId: socket.id, playerName: player.name, reason: 'disconnect' });
 
         if (room.players.length <= 1) {
           room.phase = 'over';

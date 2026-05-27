@@ -84,10 +84,15 @@ function clientValidate(state, qty, face) {
 
   const cur = state.currentBid;
   if (!cur) {
-    if (face === 1) return { ok: false, why: 'Cannot open with 1s' };
+    if (!state.isPalifico && face === 1) return { ok: false, why: 'Cannot open with 1s' };
     return { ok: true };
   }
   if (state.isPalifico) {
+    if (myDice.length === 1) {
+      if (qty > cur.quantity) return { ok: true };
+      if (qty === cur.quantity && face > cur.face) return { ok: true };
+      return { ok: false, why: 'Must raise quantity or bid same quantity of higher face' };
+    }
     if (state.palificoFace !== null && face !== state.palificoFace)
       return { ok: false, why: `Palifico: must bid ${state.palificoFace}s` };
     if (qty <= cur.quantity) return { ok: false, why: 'Palifico: must raise quantity' };
@@ -436,9 +441,9 @@ function refreshBidControls() {
     const f = parseInt(btn.dataset.face, 10);
     btn.classList.toggle('selected', f === selFace);
 
-    if (gs.isPalifico && gs.palificoFace !== null) {
+    if (gs.isPalifico && gs.palificoFace !== null && myDice.length > 1) {
       btn.disabled = (f !== gs.palificoFace);
-    } else if (gs.firstBidOfRound) {
+    } else if (gs.firstBidOfRound && !gs.isPalifico) {
       btn.disabled = (f === 1);
     } else {
       btn.disabled = false;
@@ -590,7 +595,7 @@ function showReveal(r) {
     `💀 ${esc(loserName)} just lowered quick maths`,
     `💀 ${esc(loserName)} got audited by RNGesus`,
     `💀 ${esc(loserName)} experienced a critical skill issue`,
-    `💀 ${esc(loserName)} is on his way straight home`,
+    `💀 ${esc(loserName)} is on their way straight home`,
     `💀 ${esc(loserName)} lost a die to budget cuts`,
   ];
   const loserLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
@@ -617,7 +622,17 @@ function showReveal(r) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Elimination
 // ─────────────────────────────────────────────────────────────────────────────
-socket.on('player_eliminated', ({ playerName }) => {
+socket.on('player_eliminated', ({ playerName, reason }) => {
+  if (reason === 'disconnect') {
+    const disconnectQuips = [
+      `${playerName} lagged out of reality`,
+      `${playerName} lost connection faster than they lost the game`,
+      `${playerName} has been claimed by unstable Wi-Fi`,
+      `${playerName} timed out while searching for better luck`,
+      `${playerName} has been defeated by ping`,
+    ];
+    toast(disconnectQuips[Math.floor(Math.random() * disconnectQuips.length)], 'warn');
+  }
   animateElimination(playerName);
 });
 
@@ -705,14 +720,7 @@ document.getElementById('btn-ragequit-yes').addEventListener('click', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('player_disconnected', ({ playerName, gameState: state }) => {
   if (state) gs = state;
-  const disconnectQuips = [
-    `${playerName} lagged out of reality`,
-    `${playerName} lost connection faster than they lost the game`,
-    `${playerName} has been claimed by unstable Wi-Fi`,
-    `${playerName} timed out while searching for better luck`,
-    `${playerName} has been defeated by ping`,
-  ];
-  toast(disconnectQuips[Math.floor(Math.random() * disconnectQuips.length)], 'warn');
+  toast(`${playerName} has disconnected`, 'warn');
   if (gs?.phase === 'playing') renderGame();
 });
 
