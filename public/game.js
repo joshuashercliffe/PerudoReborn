@@ -488,11 +488,11 @@ function dealMyDice() {
     if (gen !== dealGeneration) return;
     if (ticks < shuffleTicks) {
       cubes.forEach(c => {
-        c.style.transition = 'transform 370ms ease-in-out';
+        c.style.transition = 'transform 180ms ease-in-out';
         c.style.transform = randomTumble();
       });
       ticks++;
-      setTimeout(tick, 400);
+      setTimeout(tick, 200);
     } else {
       // Land on correct face with bounce
       cubes.forEach((c, i) => {
