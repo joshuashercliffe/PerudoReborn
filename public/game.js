@@ -21,6 +21,17 @@ const DIE_LAYOUT = {
 // Text name for toast messages
 const FACE_NAME = ['', '1s', '2s', '3s', '4s', '5s', '6s'];
 
+// 3D die: cube rotation to show each face value to the viewer
+// Face positions in cube: f1=front, f2=right, f3=top, f4=bottom, f5=left, f6=back
+const FACE3_TRANSFORMS = {
+  1: 'rotateX(0deg) rotateY(0deg)',
+  2: 'rotateY(-90deg)',
+  3: 'rotateX(-90deg)',
+  4: 'rotateX(90deg)',
+  5: 'rotateY(90deg)',
+  6: 'rotateY(180deg)',
+};
+
 function makeDie(value, extraClass = '') {
   const layout = DIE_LAYOUT[value] || DIE_LAYOUT[1];
   const dots = layout.map(on => `<span class="dot${on ? '' : ' empty'}"></span>`).join('');
@@ -430,10 +441,27 @@ function renderBidHistory() {
   list.scrollTop = list.scrollHeight;
 }
 
+function die3FacesHtml() {
+  return [1,2,3,4,5,6].map(f => {
+    const dots = (DIE_LAYOUT[f]||DIE_LAYOUT[1]).map(on=>`<span class="dot${on?'':' empty'}"></span>`).join('');
+    return `<div class="die3-face die3-f${f}">${dots}</div>`;
+  }).join('');
+}
+
+function make3DDie(value) {
+  const t = FACE3_TRANSFORMS[value] || FACE3_TRANSFORMS[1];
+  return `<div class="die3-wrap"><div class="die3" style="transform:${t}">${die3FacesHtml()}</div></div>`;
+}
+
+function randomTumble() {
+  const r = () => Math.floor(30 + Math.random() * 330);
+  return `rotateX(${r()}deg) rotateY(${r()}deg) rotateZ(${Math.floor(Math.random()*360)}deg)`;
+}
+
 function renderMyDice() {
   dealGeneration++; // cancel any in-progress deal animation
   document.getElementById('my-dice').innerHTML =
-    [...myDice].sort((a, b) => a - b).map(d => makeDie(d)).join('');
+    [...myDice].sort((a, b) => a - b).map(d => make3DDie(d)).join('');
 }
 
 function dealMyDice() {
@@ -442,27 +470,47 @@ function dealMyDice() {
   const finalDice = [...myDice].sort((a, b) => a - b);
   if (!finalDice.length) { container.innerHTML = ''; return; }
 
+  const facesHtml = die3FacesHtml();
+  container.innerHTML = finalDice.map(() =>
+    `<div class="die3-wrap"><div class="die3">${facesHtml}</div></div>`
+  ).join('');
+
+  const cubes = [...container.querySelectorAll('.die3')];
+  const wraps = [...container.querySelectorAll('.die3-wrap')];
+
+  // Instant random starting position (no transition)
+  cubes.forEach(c => { c.style.transition = 'none'; c.style.transform = randomTumble(); });
+
   let ticks = 0;
   const shuffleTicks = 5;
 
   function tick() {
-    if (gen !== dealGeneration) return; // superseded by renderMyDice or a newer deal
+    if (gen !== dealGeneration) return;
     if (ticks < shuffleTicks) {
-      container.innerHTML = finalDice
-        .map(() => makeDie(Math.floor(Math.random() * 6) + 1, 'die-rolling'))
-        .join('');
+      cubes.forEach(c => {
+        c.style.transition = 'transform 370ms ease-in-out';
+        c.style.transform = randomTumble();
+      });
       ticks++;
       setTimeout(tick, 400);
     } else {
-      container.innerHTML = finalDice.map((d, i) => {
-        const dots = (DIE_LAYOUT[d] || DIE_LAYOUT[1])
-          .map(on => `<span class="dot${on ? '' : ' empty'}"></span>`).join('');
-        return `<div class="die die-land" style="animation-delay:${i * 15}ms">${dots}</div>`;
-      }).join('');
+      // Land on correct face with bounce
+      cubes.forEach((c, i) => {
+        c.style.transition = 'transform 480ms cubic-bezier(0.34,1.56,0.64,1)';
+        c.style.transform = FACE3_TRANSFORMS[finalDice[i]];
+      });
+      wraps.forEach((w, i) => {
+        w.style.animationDelay = `${i * 55}ms`;
+        w.classList.add('die3-landing');
+      });
     }
   }
 
-  tick();
+  // Two rAFs so the initial transform renders before transitions begin
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (gen !== dealGeneration) return;
+    tick();
+  }));
 }
 
 function renderActionUI() {
@@ -710,18 +758,18 @@ function showReveal(r) {
 
   const outcomeText = isFaceoff
     ? (bidMet
-        ? `✓ Sum is ${count} ≥ ${bid.quantity} — <strong>${esc(challengerName)}</strong> loses`
-        : `✗ Sum is ${count}, bid was ${bid.quantity} — <strong>${esc(bidderName)}</strong> loses`)
+        ? `✗ Call unsuccessful — sum is ${count} ≥ ${bid.quantity}, <strong>${esc(challengerName)}</strong> loses`
+        : `✓ Call successful — sum is ${count}, bid was ${bid.quantity}, <strong>${esc(bidderName)}</strong> loses`)
     : (bidMet
-        ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
-        : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`);
+        ? `✗ Call unsuccessful — <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
+        : `✓ Call successful — <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`);
 
   document.getElementById('reveal-all-dice').innerHTML = `
     <div class="reveal-players-row">${playersRowHtml}</div>
     ${bottomRowHtml}`;
 
   document.getElementById('reveal-summary').innerHTML = `
-    <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">${outcomeText}</div>
+    <div class="reveal-outcome ${bidMet ? 'lose' : 'win'}">${outcomeText}</div>
     <div class="reveal-loser-line">${loserLine}</div>`;
 
   hideEl('btn-next-round');
