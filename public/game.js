@@ -481,51 +481,19 @@ function dealMyDice() {
   const cubes = [...container.querySelectorAll('.die3')];
   const wraps = [...container.querySelectorAll('.die3-wrap')];
 
-  // Each die gets its own random spin axis/direction
-  const spinFns = [
-    n => `rotateY(${n}deg)`,
-    n => `rotateY(${-n}deg)`,
-    n => `rotateX(${n}deg)`,
-    n => `rotateX(${-n}deg)`,
-    n => `rotateZ(${n}deg)`,
-    n => `rotateZ(${-n}deg)`,
-  ];
-  const dieSpins = cubes.map(() => spinFns[Math.floor(Math.random() * spinFns.length)]);
-  let angle = 0;
+  // Start each die at a random tumbled rotation, then land immediately
+  cubes.forEach(c => { c.style.transition = 'none'; c.style.transform = randomTumble(); });
 
-  // Instant start position (no transition)
-  cubes.forEach((c, i) => { c.style.transition = 'none'; c.style.transform = dieSpins[i](0); });
-
-  let ticks = 0;
-  const shuffleTicks = 5;
-
-  function tick() {
-    if (gen !== dealGeneration) return;
-    if (ticks < shuffleTicks) {
-      angle += 108;
-      cubes.forEach((c, i) => {
-        c.style.transition = 'transform 180ms linear';
-        c.style.transform = dieSpins[i](angle);
-      });
-      ticks++;
-      setTimeout(tick, 200);
-    } else {
-      // Land on correct face with bounce
-      cubes.forEach((c, i) => {
-        c.style.transition = 'transform 480ms cubic-bezier(0.34,1.56,0.64,1)';
-        c.style.transform = FACE3_TRANSFORMS[finalDice[i]];
-      });
-      wraps.forEach((w, i) => {
-        w.style.animationDelay = `${i * 55}ms`;
-        w.classList.add('die3-landing');
-      });
-    }
-  }
-
-  // Two rAFs so the initial transform renders before transitions begin
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (gen !== dealGeneration) return;
-    tick();
+    cubes.forEach((c, i) => {
+      c.style.transition = 'transform 480ms cubic-bezier(0.34,1.56,0.64,1)';
+      c.style.transform = FACE3_TRANSFORMS[finalDice[i]];
+    });
+    wraps.forEach((w, i) => {
+      w.style.animationDelay = `${i * 55}ms`;
+      w.classList.add('die3-landing');
+    });
   }));
 }
 
