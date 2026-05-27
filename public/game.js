@@ -343,6 +343,7 @@ function renderGame() {
   renderMyDice();
   renderActionUI();
   renderAutoLiarBtn();
+  renderReactionButtons();
 }
 
 function renderPlayersBar() {
@@ -518,6 +519,14 @@ function renderAutoLiarBtn() {
   }
 }
 
+function renderReactionButtons() {
+  if (gs.phase === 'playing' && myDice.length > 0) {
+    showEl('reaction-buttons');
+  } else {
+    hideEl('reaction-buttons');
+  }
+}
+
 function renderActionUI() {
   const isMyTurn = gs.currentPlayerId === myId && gs.phase === 'playing';
   if (!isMyTurn) { hideEl('action-ui'); return; }
@@ -589,6 +598,29 @@ document.getElementById('btn-challenge').addEventListener('click', () => {
 
 document.getElementById('btn-autoliar').addEventListener('click', () => {
   socket.emit('auto_liar');
+});
+
+document.getElementById('btn-react-fire').addEventListener('click', () => {
+  socket.emit('reaction', { type: 'fire' });
+});
+document.getElementById('btn-react-ice').addEventListener('click', () => {
+  socket.emit('reaction', { type: 'ice' });
+});
+
+function spawnFloatingEmoji(emoji) {
+  const el = document.createElement('div');
+  el.className = 'floating-emoji';
+  el.textContent = emoji;
+  const leftPct = 5 + Math.random() * 88;
+  const driftPx = (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 50);
+  el.style.left = leftPct + '%';
+  el.style.setProperty('--drift-x', driftPx + 'px');
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+socket.on('reaction', ({ type }) => {
+  spawnFloatingEmoji(type === 'fire' ? '🔥' : '🧊');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

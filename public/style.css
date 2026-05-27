@@ -592,6 +592,41 @@ input[type="text"]::placeholder { color: var(--muted); }
   50% { box-shadow: 0 0 18px rgba(220,38,38,.6); }
 }
 
+/* ── Reaction buttons ────────────────────────────────────────────────── */
+#reaction-buttons {
+  display: flex; justify-content: center; gap: 12px; margin: 4px 0;
+}
+.btn-react {
+  background: rgba(255,255,255,.07); color: #d1d5db;
+  border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
+  font-size: .88rem; font-weight: 600; padding: 7px 20px;
+  cursor: pointer; touch-action: manipulation;
+  transition: background .15s, border-color .15s, transform .1s;
+  user-select: none;
+}
+.btn-react:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.28); }
+.btn-react:active { transform: scale(0.92); }
+
+/* ── Floating emoji ──────────────────────────────────────────────────── */
+.floating-emoji {
+  position: fixed;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+  font-size: 1.5rem;
+  line-height: 1;
+  user-select: none;
+  animation: floatUp 2s ease-out forwards;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(0)      translateX(0);                          opacity: 1; }
+  20%  { transform: translateY(-22vh)  translateX(var(--drift-x));             opacity: 1; }
+  40%  { transform: translateY(-44vh)  translateX(0);                         opacity: 1; }
+  60%  { transform: translateY(-66vh)  translateX(calc(var(--drift-x) * -.7)); opacity: 1; }
+  80%  { transform: translateY(-88vh)  translateX(calc(var(--drift-x) * .4));  opacity: 0.7; }
+  100% { transform: translateY(-115vh) translateX(0);                         opacity: 0; }
+}
+
 /* ── End Game button ─────────────────────────────────────────────────── */
 .btn-end-game {
   position: fixed; bottom: 14px; right: 14px; z-index: 20;

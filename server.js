@@ -155,11 +155,25 @@ function checkIsPeak(bid, allDice, room, challenger) {
   if (bid.face === null) return false;
   const matchCount = countForFace(bid.face, allDice);
   if (matchCount !== bid.quantity) return false;
-  for (let f = bid.face + 1; f <= 6; f++) {
-    if (countForFace(f, allDice) >= bid.quantity) return false;
-  }
-  for (let f = 1; f <= 6; f++) {
-    if (countForFace(f, allDice) >= bid.quantity + 1) return false;
+
+  const ones = allDice.filter(d => d === 1).length;
+
+  if (bid.face === 1) {
+    // From a 1s bid: raise 1s directly (qty+1), or switch to non-1s (requires qty >= bid.quantity*2)
+    if (ones >= bid.quantity + 1) return false;
+    for (let f = 2; f <= 6; f++) {
+      if (countForFace(f, allDice) >= bid.quantity * 2) return false;
+    }
+  } else {
+    // From a non-1s bid: same qty higher face, or higher qty any non-1 face
+    for (let f = bid.face + 1; f <= 6; f++) {
+      if (countForFace(f, allDice) >= bid.quantity) return false;
+    }
+    for (let f = 2; f <= 6; f++) {
+      if (countForFace(f, allDice) >= bid.quantity + 1) return false;
+    }
+    // Switch to 1s requires qty >= ceil(bid.quantity / 2)
+    if (ones >= Math.ceil(bid.quantity / 2)) return false;
   }
   return true;
 }
@@ -541,6 +555,12 @@ io.on('connection', socket => {
     if (!room.players.find(p => p.id === socket.id)) return;
     room.revealResolved = false; // first click wins, prevent double-start
     startRound();
+  });
+
+  // ── Reactions ────────────────────────────────────────────────────────
+  socket.on('reaction', ({ type }) => {
+    if (!['fire', 'ice'].includes(type)) return;
+    io.to(ROOM).emit('reaction', { type });
   });
 
   // ── Leave room (play again → everyone back to name entry) ────────────
