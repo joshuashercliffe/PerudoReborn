@@ -114,11 +114,47 @@ function countForFace(face, allDice) {
   return allDice.filter(d => d === face || d === 1).length;
 }
 
-function checkIsPeak(bid, allDice) {
-  if (!bid || bid.face === null) return false;
+function checkIsPeak(bid, allDice, room, challenger) {
+  if (!bid) return false;
+
+  // ── Faceoff ──────────────────────────────────────────────────────────────
+  // Peak if the bid exactly equals the actual sum — challenger had no higher
+  // truthful option (any bid above the true sum would be a lie).
+  if (room.isFaceoff) {
+    const actualSum = allDice.reduce((s, d) => s + d, 0);
+    return bid.quantity === actualSum;
+  }
+
+  // ── Palifico ─────────────────────────────────────────────────────────────
+  // No wild 1s in palifico — all counts are exact face matches.
+  if (room.isPalifico) {
+    const exactCount = allDice.filter(d => d === bid.face).length;
+    if (exactCount !== bid.quantity) return false;
+
+    if (challenger.diceCount === 1) {
+      // 1-die player follows standard raise rules and CAN change pip.
+      // Peak only if no higher truthful bid exists for them:
+      //   - same qty, higher face
+      for (let f = bid.face + 1; f <= 6; f++) {
+        if (allDice.filter(d => d === f).length >= bid.quantity) return false;
+      }
+      //   - higher qty, any face
+      for (let f = 1; f <= 6; f++) {
+        if (allDice.filter(d => d === f).length >= bid.quantity + 1) return false;
+      }
+      return true;
+    } else {
+      // Multi-die player is locked to the palifico face; only valid raise is
+      // qty+1 of the same face. Since exactCount === bid.quantity, qty+1
+      // of that face would be a lie — no valid higher bid exists.
+      return true;
+    }
+  }
+
+  // ── Standard ─────────────────────────────────────────────────────────────
+  if (bid.face === null) return false;
   const matchCount = countForFace(bid.face, allDice);
-  if (matchCount !== bid.quantity) return false; // must be exactly correct
-  // Check: is there any higher valid bid that could also be truthful?
+  if (matchCount !== bid.quantity) return false;
   for (let f = bid.face + 1; f <= 6; f++) {
     if (countForFace(f, allDice) >= bid.quantity) return false;
   }
@@ -235,7 +271,7 @@ function processChallenge(challenger) {
   room.phase = 'reveal';
 
   const allDice = room.players.flatMap(p => p.dice);
-  const isPeak = !room.isFaceoff && !room.isPalifico && checkIsPeak(room.currentBid, allDice);
+  const isPeak = checkIsPeak(room.currentBid, allDice, room, challenger);
 
   io.to(ROOM).emit('liar_called', { challengerName: challenger.name, isPeak });
 
