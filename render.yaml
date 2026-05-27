@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: perudo-liars-dice
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
