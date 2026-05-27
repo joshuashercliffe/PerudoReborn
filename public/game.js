@@ -241,13 +241,11 @@ socket.on('lobby_update', state => {
   if (document.getElementById('screen-lobby').classList.contains('active')) {
     renderLobby(state);
   } else if (document.getElementById('screen-over').classList.contains('active')) {
-    if (state.players.some(p => p.id === myId)) {
-      showScreen('screen-lobby');
-      renderLobby(state);
-    } else {
+    if (!state.players.some(p => p.id === myId)) {
       localStorage.removeItem('perudoSession');
       showScreen('screen-landing');
     }
+    // Otherwise stay on game-over — player returns to lobby via Play Again
   }
 });
 
@@ -777,7 +775,7 @@ function showPeakOverlay(challengerName) {
     el.style.animation = '';
   });
   showEl(overlay);
-  setTimeout(() => hideEl(overlay), 3500);
+  setTimeout(() => hideEl(overlay), 5250);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1012,8 +1010,7 @@ socket.on('game_over', ({ winner, reason, quitterName }) => {
 });
 
 document.getElementById('btn-play-again').addEventListener('click', () => {
-  socket.emit('leave_room');
-  // game_reset event from server will redirect everyone including us
+  socket.emit('play_again');
 });
 
 socket.on('game_reset', () => {
