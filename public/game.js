@@ -143,9 +143,9 @@ socket.on('rejoined', ({ sessionToken, state, dice, phase }) => {
   } else if (phase === 'over') {
     const w = state.players[0]?.name ?? '';
     const victoryQuips = [
-      `👑 ${w} has conquered the table and claimed victory.`,
-      `🎲 ${w} has become statistically unstoppable.`,
-      `🔥 ${w} turned pure luck into total domination.`,
+      `👑 ${w} has conquered the table and claimed victory`,
+      `🎲 ${w} has become statistically unstoppable`,
+      `🔥 ${w} turned pure luck into total domination`,
     ];
     document.getElementById('winner-name').textContent =
       victoryQuips[Math.floor(Math.random() * victoryQuips.length)];
@@ -458,12 +458,12 @@ function showReveal(r) {
   }).join('');
 
   const loserQuips = [
-    `💀 ${esc(loserName)} angered the dice gods and paid the tax.`,
-    `💀 ${esc(loserName)} just lowered quick maths.`,
-    `💀 ${esc(loserName)} got audited by RNGesus.`,
-    `💀 ${esc(loserName)} experienced a critical skill issue.`,
-    `💀 ${esc(loserName)} is on his way straight home.`,
-    `💀 ${esc(loserName)} lost a die to budget cuts.`,
+    `💀 ${esc(loserName)} angered the dice gods and paid the tax`,
+    `💀 ${esc(loserName)} just lowered quick maths`,
+    `💀 ${esc(loserName)} got audited by RNGesus`,
+    `💀 ${esc(loserName)} experienced a critical skill issue`,
+    `💀 ${esc(loserName)} is on his way straight home`,
+    `💀 ${esc(loserName)} lost a die to budget cuts`,
   ];
   const loserLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
 
@@ -472,8 +472,8 @@ function showReveal(r) {
     <div class="reveal-summary-count">Found: <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>
     <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">
       ${bidMet
-        ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses a die.`
-        : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses a die.`}
+        ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses a die`
+        : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses a die`}
     </div>
     <div class="reveal-loser-line">${loserLine}</div>`;
 
@@ -490,10 +490,10 @@ socket.on('player_eliminated', ({ playerName }) => {
 function animateElimination(name) {
   const eliminationQuips = [
     `${name} has been sent straight home!`,
-    `${name} is out of the game and into the history books.`,
-    `${name} is officially out of dice and out of hope.`,
-    `${name} has been voted off the island by RNG.`,
-    `${name} is no longer among the rolling.`,
+    `${name} is out of the game and into the history books`,
+    `${name} is officially out of dice and out of hope`,
+    `${name} has been voted off the island by RNG`,
+    `${name} is no longer among the rolling`,
   ];
   document.getElementById('elimination-name').textContent =
     eliminationQuips[Math.floor(Math.random() * eliminationQuips.length)];
@@ -526,9 +526,9 @@ function animateElimination(name) {
 socket.on('game_over', ({ winner }) => {
   hideEl('reveal-overlay');
   const victoryQuips = [
-    `👑 ${winner} has conquered the table and claimed victory.`,
-    `🎲 ${winner} has become statistically unstoppable.`,
-    `🔥 ${winner} turned pure luck into total domination.`,
+    `👑 ${winner} has conquered the table and claimed victory`,
+    `🎲 ${winner} has become statistically unstoppable`,
+    `🔥 ${winner} turned pure luck into total domination`,
   ];
   document.getElementById('winner-name').textContent =
     victoryQuips[Math.floor(Math.random() * victoryQuips.length)];
@@ -537,6 +537,18 @@ socket.on('game_over', ({ winner }) => {
 
 document.getElementById('btn-play-again').addEventListener('click', () => {
   socket.emit('return_to_lobby');
+});
+
+// ── End Game / Rage Quit ──────────────────────────────────────────────────────
+document.getElementById('btn-end-game').addEventListener('click', () => {
+  showEl('ragequit-overlay');
+});
+document.getElementById('btn-ragequit-no').addEventListener('click', () => {
+  hideEl('ragequit-overlay');
+});
+document.getElementById('btn-ragequit-yes').addEventListener('click', () => {
+  hideEl('ragequit-overlay');
+  socket.emit('rage_quit');
 });
 
 socket.on('lobby_update', state => {

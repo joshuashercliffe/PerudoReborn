@@ -94,6 +94,8 @@ input[type="text"]::placeholder { color: var(--muted); }
 .btn-secondary:hover { background: rgba(255,255,255,0.12); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-danger:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(239,68,68,.4); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,.4); }
 
 .hidden { display: none !important; }
 
@@ -394,6 +396,33 @@ input[type="text"]::placeholder { color: var(--muted); }
 .winner-title { color: var(--gold); font-size: 2.5rem; margin-bottom: 8px; }
 .winner-name { font-size: 2rem; font-weight: 900; color: var(--text); margin: 8px 0 32px; }
 
+/* ── End Game button ─────────────────────────────────────────────────── */
+.btn-end-game {
+  background: transparent; color: var(--muted);
+  border: 1px solid rgba(255,255,255,.12); font-size: .78rem;
+  padding: 7px 18px; width: auto; margin-top: 4px;
+  touch-action: manipulation;
+}
+.btn-end-game:hover { color: var(--danger); border-color: var(--danger); background: rgba(239,68,68,.08); }
+
+/* ── Rage Quit Modal ─────────────────────────────────────────────────── */
+#ragequit-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 90;
+}
+#ragequit-modal {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px 28px;
+  max-width: 340px; width: 90%; text-align: center;
+  box-shadow: var(--shadow);
+}
+#ragequit-question {
+  font-size: 1.15rem; font-weight: 700; margin-bottom: 24px; line-height: 1.4;
+}
+#ragequit-buttons { display: flex; gap: 10px; }
+#ragequit-buttons .btn { margin-top: 0; }
+
 /* ── Bid History ─────────────────────────────────────────────────────── */
 #bid-history-section {
   width: 100%; max-width: 540px;
@@ -447,6 +476,8 @@ input[type="text"]::placeholder { color: var(--muted); }
   .card { padding: 28px 20px; }
   h1 { font-size: 2.4rem; }
   #liar-text { font-size: 6rem; }
+  #palifico-text { font-size: 4rem; letter-spacing: 1px; }
+  #palifico-sub { font-size: 1rem; }
   .die { width: 56px; height: 56px; }
   .bid-die { width: 44px !important; height: 44px !important; }
   #bid-controls { gap: 16px; }

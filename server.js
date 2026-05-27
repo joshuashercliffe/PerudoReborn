@@ -294,7 +294,7 @@ io.on('connection', socket => {
     setTimeout(() => {
       io.to(ROOM).emit('challenge_result', result);
 
-      // Resolve die loss after reveal animation
+      // Resolve die loss after reveal animation (4.5s × 2.5)
       setTimeout(() => {
         const loserIdx = room.players.findIndex(p => p.id === loser.id);
         if (loserIdx === -1) return;
@@ -329,9 +329,40 @@ io.on('connection', socket => {
         }
 
         room.roundNumber++;
-        setTimeout(() => startRound(), 2000);
-      }, 4500);
+        setTimeout(() => startRound(), 4000);
+      }, 9000);
     }, 1200);
+  });
+
+  // ── Rage quit ─────────────────────────
+  socket.on('rage_quit', () => {
+    if (room.phase !== 'playing' && room.phase !== 'reveal') return;
+    const idx = room.players.findIndex(p => p.id === socket.id);
+    if (idx === -1) return;
+
+    const player = room.players[idx];
+    room.players.splice(idx, 1);
+    io.to(ROOM).emit('player_eliminated', { playerId: socket.id, playerName: player.name });
+
+    if (room.players.length <= 1) {
+      room.phase = 'over';
+      io.to(ROOM).emit('game_over', { winner: room.players[0]?.name ?? 'Nobody' });
+      return;
+    }
+
+    // Keep lastBidderIndex valid
+    if (room.lastBidderIndex >= room.players.length) room.lastBidderIndex = -1;
+    if (room.lastBidderIndex > idx) room.lastBidderIndex--;
+
+    // Advance turn pointer
+    if (idx < room.currentPlayerIndex) {
+      room.currentPlayerIndex--;
+    } else {
+      room.currentPlayerIndex = room.currentPlayerIndex % room.players.length;
+    }
+
+    room.roundNumber++;
+    setTimeout(() => startRound(), 1500);
   });
 
   // ── Return to lobby after game ────────

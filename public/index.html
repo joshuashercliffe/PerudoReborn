@@ -81,7 +81,7 @@
         <div id="quick-maths">
           <div class="info-label">Quick Maths</div>
           <div id="qm-value" class="qm-value">—</div>
-          <div class="info-sub">avg per face (÷3)</div>
+          <div class="info-sub"></div>
         </div>
       </div>
 
@@ -113,8 +113,8 @@
         </div>
         <div id="bid-hint-msg"></div>
         <div id="action-buttons">
-          <button id="btn-bid" class="btn btn-primary" disabled>Make Bid</button>
           <button id="btn-challenge" class="btn btn-danger" disabled>Liar</button>
+          <button id="btn-bid" class="btn btn-success" disabled>Make Bid</button>
         </div>
       </div>
 
@@ -124,7 +124,20 @@
         <div id="bid-history-list"></div>
       </details>
 
+      <button id="btn-end-game" class="btn btn-end-game">End Game</button>
+
     </div><!-- /#game-center -->
+
+    <!-- Rage quit confirmation modal -->
+    <div id="ragequit-overlay" class="hidden">
+      <div id="ragequit-modal">
+        <p id="ragequit-question">Are you sure you wish to rage quit?</p>
+        <div id="ragequit-buttons">
+          <button id="btn-ragequit-yes" class="btn btn-danger" style="touch-action:manipulation">Yes, I rage quit</button>
+          <button id="btn-ragequit-no"  class="btn btn-secondary" style="touch-action:manipulation">No, I stay</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Reveal overlay -->
     <div id="reveal-overlay" class="hidden">
