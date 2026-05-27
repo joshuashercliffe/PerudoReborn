@@ -23,7 +23,55 @@
   <!-- WOAH overlay (wild opening bid) -->
   <div id="woah-overlay" class="hidden">
     <div id="woah-phase1">
-      <div id="woah-img-wrap"><img id="woah-img" src="woah.png" alt=""></div>
+      <div id="woah-img-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 290" width="200" height="194">
+          <!-- Arms (drawn behind head/shirt) -->
+          <path d="M 80 205 C 14 188 14 108 46 62 C 64 38 88 46 96 68" fill="none" stroke="#ddd0bc" stroke-width="28" stroke-linecap="round"/>
+          <path d="M 220 205 C 286 188 286 108 254 62 C 236 38 212 46 204 68" fill="none" stroke="#ddd0bc" stroke-width="28" stroke-linecap="round"/>
+          <!-- Shirt -->
+          <path d="M 15 290 L 20 215 Q 48 196 80 205 L 108 290 Z" fill="#4a4a4a" stroke="#777" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M 285 290 L 280 215 Q 252 196 220 205 L 192 290 Z" fill="#4a4a4a" stroke="#777" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M 108 290 L 80 205 Q 98 192 116 188 L 150 290 Z" fill="#424242" stroke="#666" stroke-width="1" stroke-linejoin="round"/>
+          <path d="M 192 290 L 220 205 Q 202 192 184 188 L 150 290 Z" fill="#424242" stroke="#666" stroke-width="1" stroke-linejoin="round"/>
+          <path d="M 116 188 Q 128 205 150 208 Q 172 205 184 188" fill="none" stroke="#5a5a5a" stroke-width="2" stroke-linecap="round"/>
+          <!-- Neck -->
+          <ellipse cx="150" cy="186" rx="24" ry="14" fill="#ddd0bc"/>
+          <!-- Head -->
+          <ellipse cx="150" cy="108" rx="56" ry="66" fill="#e8ddd0"/>
+          <!-- Hair stubble -->
+          <path d="M 104 72 Q 118 50 150 48 Q 182 50 196 72 Q 180 57 150 55 Q 120 57 104 72 Z" fill="#9a9286" opacity="0.7"/>
+          <!-- Ears -->
+          <ellipse cx="94" cy="108" rx="9" ry="13" fill="#ddd0bc"/>
+          <ellipse cx="206" cy="108" rx="9" ry="13" fill="#ddd0bc"/>
+          <!-- Eyebrows (raised — shocked) -->
+          <path d="M 112 80 Q 126 68 140 75" fill="none" stroke="#706050" stroke-width="4.5" stroke-linecap="round"/>
+          <path d="M 160 75 Q 174 68 188 80" fill="none" stroke="#706050" stroke-width="4.5" stroke-linecap="round"/>
+          <!-- Left eye wide open -->
+          <ellipse cx="133" cy="102" rx="13.5" ry="15" fill="white"/>
+          <circle cx="134" cy="104" r="8.5" fill="#111"/>
+          <circle cx="138" cy="100" r="3" fill="white"/>
+          <!-- Right eye wide open -->
+          <ellipse cx="167" cy="102" rx="13.5" ry="15" fill="white"/>
+          <circle cx="168" cy="104" r="8.5" fill="#111"/>
+          <circle cx="172" cy="100" r="3" fill="white"/>
+          <!-- Nose -->
+          <path d="M 143 114 Q 138 128 136 134 Q 142 140 150 140 Q 158 140 164 134 Q 162 128 157 114" fill="none" stroke="#b0a490" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Beard/stubble shading -->
+          <path d="M 118 132 Q 116 155 133 163 Q 150 168 167 163 Q 184 155 182 132 Q 170 146 150 147 Q 130 146 118 132 Z" fill="#c8b8a4" opacity="0.5"/>
+          <!-- Mouth — shocked open O -->
+          <ellipse cx="150" cy="150" rx="15" ry="12" fill="#0d0d0d"/>
+          <ellipse cx="150" cy="148" rx="12" ry="7" fill="#881818"/>
+          <rect x="142" y="144" width="16" height="6" rx="3" fill="#f0f0f0"/>
+          <!-- Left hand fingers on head -->
+          <path d="M 85 62 Q 80 48 85 42" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
+          <path d="M 95 56 Q 93 42 98 36" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
+          <path d="M 106 55 Q 108 41 114 38" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
+          <!-- Right hand fingers on head -->
+          <path d="M 215 62 Q 220 48 215 42" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
+          <path d="M 205 56 Q 207 42 202 36" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
+          <path d="M 194 55 Q 192 41 186 38" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
+        </svg>
+      </div>
       <div id="woah-label">WOAH</div>
     </div>
     <div id="woah-phase2" class="hidden">

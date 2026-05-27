@@ -385,7 +385,7 @@ function dealMyDice() {
   if (!finalDice.length) { container.innerHTML = ''; return; }
 
   let ticks = 0;
-  const shuffleTicks = 13;
+  const shuffleTicks = 6;
 
   function tick() {
     if (ticks < shuffleTicks) {
@@ -393,15 +393,12 @@ function dealMyDice() {
         .map(() => makeDie(Math.floor(Math.random() * 6) + 1, 'die-rolling'))
         .join('');
       ticks++;
-      // Slow down toward the end like a roulette wheel
-      const delay = ticks < 7 ? 42 : 42 + (ticks - 7) * 28;
-      setTimeout(tick, delay);
+      setTimeout(tick, 45);
     } else {
-      // Staggered spring-land for each die
       container.innerHTML = finalDice.map((d, i) => {
         const dots = (DIE_LAYOUT[d] || DIE_LAYOUT[1])
           .map(on => `<span class="dot${on ? '' : ' empty'}"></span>`).join('');
-        return `<div class="die die-land" style="animation-delay:${i * 55}ms">${dots}</div>`;
+        return `<div class="die die-land" style="animation-delay:${i * 15}ms">${dots}</div>`;
       }).join('');
     }
   }
@@ -607,7 +604,6 @@ function showReveal(r) {
     </div>`;
 
   document.getElementById('reveal-summary').innerHTML = `
-    <div class="reveal-summary-count">Found: <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>
     <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">
       ${bidMet
         ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
