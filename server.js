@@ -320,7 +320,6 @@ function processChallenge(challenger, room, roomId) {
 
           io.to(roomId).emit('player_eliminated', { playerId: loserPlayer.id, playerName: loserPlayer.name });
           room.players.splice(loserIdx, 1);
-          socketToRoom.delete(loserPlayer.id);
 
           if (room.players.length === 1) {
             room.phase = 'over';
@@ -341,7 +340,6 @@ function processChallenge(challenger, room, roomId) {
 
           io.to(roomId).emit('player_eliminated', { playerId: loserPlayer.id, playerName: loserPlayer.name });
           room.players.splice(loserIdx, 1);
-          socketToRoom.delete(loserPlayer.id);
 
           if (room.players.length === 1) {
             room.phase = 'over';
