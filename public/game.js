@@ -443,7 +443,7 @@ function dealMyDice() {
   if (!finalDice.length) { container.innerHTML = ''; return; }
 
   let ticks = 0;
-  const shuffleTicks = 6;
+  const shuffleTicks = 5;
 
   function tick() {
     if (gen !== dealGeneration) return; // superseded by renderMyDice or a newer deal
@@ -452,7 +452,7 @@ function dealMyDice() {
         .map(() => makeDie(Math.floor(Math.random() * 6) + 1, 'die-rolling'))
         .join('');
       ticks++;
-      setTimeout(tick, 45);
+      setTimeout(tick, 400);
     } else {
       container.innerHTML = finalDice.map((d, i) => {
         const dots = (DIE_LAYOUT[d] || DIE_LAYOUT[1])
@@ -653,14 +653,14 @@ function showReveal(r) {
       </div>`;
     }).join('');
     bottomRowHtml = `
-      <div class="reveal-bid-row" style="gap:12px">
-        <div>
+      <div class="reveal-bid-row" style="flex-direction:row; gap:32px; align-items:flex-end">
+        <div style="display:flex; flex-direction:column; align-items:center">
           <span class="reveal-bid-label">Actual Sum</span>
-          <div><span class="reveal-bid-sum">${count}</span></div>
+          <span class="reveal-bid-sum">${count}</span>
         </div>
-        <div>
+        <div style="display:flex; flex-direction:column; align-items:center">
           <span class="reveal-bid-label">Bid</span>
-          <div><span class="reveal-bid-sum" style="color:var(--gold)">${bid.quantity}</span></div>
+          <span class="reveal-bid-sum" style="color:var(--gold)">${bid.quantity}</span>
         </div>
       </div>`;
   } else {
@@ -809,7 +809,14 @@ socket.on('game_over', ({ winner, reason, quitterName }) => {
 });
 
 document.getElementById('btn-play-again').addEventListener('click', () => {
-  socket.emit('return_to_lobby');
+  localStorage.removeItem('perudoSession');
+  myName = null;
+  myDice = [];
+  gs     = null;
+  bidHistory = [];
+  document.getElementById('name-input').value = '';
+  showScreen('screen-name');
+  socket.emit('leave_room');
 });
 
 // ── End Game / Rage Quit ──────────────────────────────────────────────────────

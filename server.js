@@ -459,11 +459,21 @@ io.on('connection', socket => {
     startRound();
   });
 
-  // ── Return to lobby after game ────────
-  socket.on('return_to_lobby', () => {
-    if (room.phase !== 'over') return;
-    resetToLobby();
-    io.to(ROOM).emit('lobby_update', publicState());
+  // ── Leave room (play again → name screen) ────────
+  socket.on('leave_room', () => {
+    const idx = room.players.findIndex(p => p.id === socket.id);
+    if (idx !== -1) room.players.splice(idx, 1);
+    socket.leave(ROOM);
+    // Clean up session token
+    const token = Object.keys(sessions).find(t => sessions[t] === socket.id);
+    if (token) delete sessions[token];
+
+    if (room.players.length === 0) {
+      resetToLobby();
+    } else {
+      if (room.phase === 'over') resetToLobby();
+      io.to(ROOM).emit('lobby_update', publicState());
+    }
   });
 
   // ── Disconnect ────────────────────────
