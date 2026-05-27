@@ -79,8 +79,17 @@ function toast(msg, type = '') {
 // Client-side bid validation (mirrors server — for UX hints only)
 // ─────────────────────────────────────────────────────────────────────────────
 function clientValidate(state, qty, face) {
+  if (!Number.isInteger(qty) || qty < 1) return { ok: false, why: 'Qty must be ≥ 1' };
+
+  if (state.isFaceoff) {
+    if (qty > 12) return { ok: false, why: 'Sum cannot exceed 12' };
+    const cur = state.currentBid;
+    if (!cur) return { ok: true };
+    if (qty <= cur.quantity) return { ok: false, why: 'Must bid a higher sum' };
+    return { ok: true };
+  }
+
   if (!Number.isInteger(face) || face < 1 || face > 6) return { ok: false, why: 'Invalid face' };
-  if (!Number.isInteger(qty)  || qty  < 1)             return { ok: false, why: 'Qty must be ≥ 1' };
 
   const cur = state.currentBid;
   if (!cur) {
@@ -263,12 +272,14 @@ document.getElementById('mode-btns').addEventListener('click', e => {
 // ─────────────────────────────────────────────────────────────────────────────
 socket.on('round_start', state => {
   gs = state;
+  myDice = [];
   bidHistory = [];
   hideEl('reveal-overlay');
   showScreen('screen-game');
   renderGame();
   renderBidHistory();
-  if (state.isPalifico) showPalificoAnnounce(state.currentPlayerName);
+  if (state.isFaceoff) showFaceoffAnnounce();
+  else if (state.isPalifico) showPalificoAnnounce(state.currentPlayerName);
 });
 
 function showPalificoAnnounce(triggerName) {
@@ -286,6 +297,19 @@ function showPalificoAnnounce(triggerName) {
 
   showEl(overlay);
   setTimeout(() => hideEl(overlay), 2000);
+}
+
+function showFaceoffAnnounce() {
+  const overlay = document.getElementById('faceoff-overlay');
+  document.getElementById('faceoff-sub').textContent = '1v1 — bid the sum of both dice!';
+  ['faceoff-text', 'faceoff-sub'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
+  showEl(overlay);
+  setTimeout(() => hideEl(overlay), 2500);
 }
 
 socket.on('your_dice', ({ dice }) => {
@@ -318,7 +342,8 @@ function renderPlayersBar() {
 
   document.getElementById('round-label').textContent = `Round ${gs.roundNumber}`;
   gs.gameMode === 'reverse' ? showEl('mode-badge') : hideEl('mode-badge');
-  gs.isPalifico ? showEl('palifico-badge') : hideEl('palifico-badge');
+  gs.isPalifico && !gs.isFaceoff ? showEl('palifico-badge') : hideEl('palifico-badge');
+  gs.isFaceoff ? showEl('faceoff-badge') : hideEl('faceoff-badge');
 }
 
 function renderBidDisplay() {
@@ -326,28 +351,45 @@ function renderBidDisplay() {
   const byEl  = document.getElementById('bid-display-by');
   if (gs.currentBid) {
     const { quantity, face } = gs.currentBid;
-    valEl.innerHTML = `<span class="bid-qty">${quantity}</span><span class="bid-x">×</span>${makeDie(face, 'bid-die')}`;
+    if (gs.isFaceoff) {
+      valEl.innerHTML = `<span class="bid-qty">${quantity}</span>`;
+      byEl.textContent = 'sum bid';
+    } else {
+      valEl.innerHTML = `<span class="bid-qty">${quantity}</span><span class="bid-x">×</span>${makeDie(face, 'bid-die')}`;
+      byEl.textContent = 'bid in play';
+    }
     valEl.classList.add('pop');
     valEl.addEventListener('animationend', () => valEl.classList.remove('pop'), { once: true });
-    byEl.textContent = 'bid in play';
   } else {
     valEl.innerHTML = '<span class="bid-qty empty">—</span>';
-    byEl.textContent = 'no bid yet';
+    byEl.textContent = gs.isFaceoff ? 'no sum yet' : 'no bid yet';
   }
 }
 
 function renderQuickMaths() {
-  const total = gs.players.reduce((s, p) => s + p.diceCount, 0);
-  const qm = total / 3;
-  const display = Number.isInteger(qm) ? String(qm) : qm.toFixed(2);
-  document.getElementById('qm-value').textContent = display;
-  document.getElementById('total-dice-note').textContent = ` (${total} dice in play)`;
+  const qmBox = document.getElementById('quick-maths');
+  const label = qmBox.querySelector('.info-label');
+  if (gs.isFaceoff) {
+    label.textContent = 'Sum Range';
+    document.getElementById('qm-value').textContent = '2–12';
+    document.getElementById('total-dice-note').textContent = '';
+  } else {
+    label.textContent = 'Quick Maths';
+    const total = gs.players.reduce((s, p) => s + p.diceCount, 0);
+    const qm = total / 3;
+    document.getElementById('qm-value').textContent = Number.isInteger(qm) ? String(qm) : qm.toFixed(2);
+    document.getElementById('total-dice-note').textContent = ` (${total} dice in play)`;
+  }
 }
 
 function renderStatus() {
   const bar = document.getElementById('status-bar');
   if (gs.currentPlayerId === myId) {
-    bar.textContent = gs.firstBidOfRound ? 'Your turn — open the bidding!' : 'Your turn!';
+    if (gs.isFaceoff) {
+      bar.textContent = gs.firstBidOfRound ? 'Faceoff — bid the sum of both dice!' : 'Your turn — bid higher!';
+    } else {
+      bar.textContent = gs.firstBidOfRound ? 'Your turn — open the bidding!' : 'Your turn!';
+    }
     bar.className = 'my-turn';
   } else {
     bar.textContent = `${gs.currentPlayerName}'s turn…`;
@@ -367,6 +409,13 @@ function renderBidHistory() {
         <span class="bhe-name">${esc(e.name)}</span>
         <span class="bhe-arrow">→</span>
         <span class="bhe-liar">LIAR!</span>
+      </div>`;
+    }
+    if (e.face === null) {
+      return `<div class="bid-history-entry">
+        <span class="bhe-name">${esc(e.name)}</span>
+        <span class="bhe-arrow">→</span>
+        <span class="bhe-bid">Sum: <strong>${e.qty}</strong></span>
       </div>`;
     }
     return `<div class="bid-history-entry">
@@ -416,14 +465,22 @@ function renderActionUI() {
   if (!isMyTurn) { hideEl('action-ui'); return; }
 
   showEl('action-ui');
-  gs.isPalifico ? showEl('palifico-notice') : hideEl('palifico-notice');
+  gs.isPalifico && !gs.isFaceoff ? showEl('palifico-notice') : hideEl('palifico-notice');
 
-  if (gs.currentBid) {
-    selQty  = gs.currentBid.quantity;
-    selFace = gs.currentBid.face;
+  if (gs.isFaceoff) {
+    document.getElementById('qty-label').textContent = 'Bid Sum';
+    hideEl('face-control');
+    selQty = gs.currentBid ? gs.currentBid.quantity + 1 : 2;
   } else {
-    selQty  = 1;
-    selFace = 2;
+    document.getElementById('qty-label').textContent = 'Quantity';
+    showEl('face-control');
+    if (gs.currentBid) {
+      selQty  = gs.currentBid.quantity;
+      selFace = gs.currentBid.face ?? 2;
+    } else {
+      selQty  = 1;
+      selFace = 2;
+    }
   }
   refreshBidControls();
 }
@@ -432,10 +489,18 @@ function renderActionUI() {
 // Bid controls
 // ─────────────────────────────────────────────────────────────────────────────
 document.getElementById('qty-down').addEventListener('click', () => { selQty = Math.max(1, selQty - 1); refreshBidControls(); });
-document.getElementById('qty-up').addEventListener('click',   () => { selQty++; refreshBidControls(); });
+document.getElementById('qty-up').addEventListener('click',   () => { selQty = gs?.isFaceoff ? Math.min(12, selQty + 1) : selQty + 1; refreshBidControls(); });
 
 function refreshBidControls() {
   document.getElementById('qty-val').textContent = selQty;
+
+  if (gs.isFaceoff) {
+    const v = clientValidate(gs, selQty, 0);
+    document.getElementById('bid-hint-msg').textContent = v.ok ? '' : v.why;
+    document.getElementById('btn-bid').disabled = !v.ok;
+    document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
+    return;
+  }
 
   document.querySelectorAll('.face-btn').forEach(btn => {
     const f = parseInt(btn.dataset.face, 10);
@@ -457,7 +522,7 @@ function refreshBidControls() {
 }
 
 document.getElementById('btn-bid').addEventListener('click', () => {
-  socket.emit('make_bid', { quantity: selQty, face: selFace });
+  socket.emit('make_bid', { quantity: selQty, face: gs.isFaceoff ? 0 : selFace });
 });
 
 document.getElementById('btn-challenge').addEventListener('click', () => {
@@ -473,16 +538,15 @@ function showWoahOverlay(aboveBy) {
   const phase2   = document.getElementById('woah-phase2');
   const aboveEl  = document.getElementById('woah-above');
   const wrap     = document.getElementById('woah-img-wrap');
-  const label    = document.getElementById('woah-label');
 
   showEl(phase1);
   hideEl(phase2);
   aboveEl.textContent = `${aboveBy} above quick math??`;
 
-  // Re-trigger spin animations
-  [wrap, label].forEach(el => { el.style.animation = 'none'; });
+  // Re-trigger spin animation on wrapper (label rides inside it)
+  wrap.style.animation = 'none';
   void wrap.offsetWidth;
-  [wrap, label].forEach(el => { el.style.animation = ''; });
+  wrap.style.animation = '';
 
   showEl(overlay);
 
@@ -514,10 +578,14 @@ socket.on('bid_made', ({ bid, bidderName, gameState: state }) => {
   renderGame();
   renderBidHistory();
   if (bidderName !== myName) {
-    toast(`${bidderName} bid ${bid.quantity} ${FACE_NAME[bid.face]}`);
+    if (state.isFaceoff) {
+      toast(`${bidderName} bid sum ${bid.quantity}`);
+    } else {
+      toast(`${bidderName} bid ${bid.quantity} ${FACE_NAME[bid.face]}`);
+    }
   }
 
-  if (wasFirstBid) {
+  if (wasFirstBid && !state.isFaceoff) {
     const totalDice = state.players.reduce((s, p) => s + p.diceCount, 0);
     const quickMath = totalDice / 3;
     if (bid.quantity >= quickMath + 2) {
@@ -564,27 +632,62 @@ document.getElementById('btn-next-round').addEventListener('click', () => {
 });
 
 function showReveal(r) {
-  const { revealedDice, bid, count, bidMet, isPalifico, gameMode, bidderName, challengerName, loserName } = r;
+  const { revealedDice, bid, count, bidMet, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName } = r;
 
-  // Row of relevant dice per player, each tinted in their assigned colour
-  const playersRowHtml = revealedDice.map(pd => {
-    const color = PLAYER_COLORS[pd.colorIndex ?? 0];
-    const isMe  = pd.id === myId;
-    const relevant = [...pd.dice]
-      .filter(d => d === bid.face || (!isPalifico && d === 1 && bid.face !== 1))
-      .sort((a, b) => a - b);
-    if (!relevant.length) return '';
-    const diceHtml = relevant.map(d => makeColoredDie(d, color, 'small')).join('');
-    return `<div class="reveal-player-section">
-      <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
-      <div class="reveal-player-dice">${diceHtml}</div>
-    </div>`;
-  }).join('');
+  let playersRowHtml, bottomRowHtml;
 
-  // Bid row: bid.quantity copies of the bid-face die
-  const bidDiceHtml = Array.from({ length: bid.quantity }, () => makeDie(bid.face, 'small')).join('');
+  if (isFaceoff) {
+    // Show every die for every player (no filtering — all dice are relevant)
+    playersRowHtml = revealedDice.map(pd => {
+      const color = PLAYER_COLORS[pd.colorIndex ?? 0];
+      const isMe  = pd.id === myId;
+      const diceHtml = pd.dice.map(d => makeColoredDie(d, color, 'small')).join('');
+      return `<div class="reveal-player-section">
+        <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
+        <div class="reveal-player-dice">${diceHtml}</div>
+      </div>`;
+    }).join('');
+    bottomRowHtml = `
+      <div class="reveal-bid-row" style="gap:12px">
+        <div>
+          <span class="reveal-bid-label">Actual Sum</span>
+          <div><span class="reveal-bid-sum">${count}</span></div>
+        </div>
+        <div>
+          <span class="reveal-bid-label">Bid</span>
+          <div><span class="reveal-bid-sum" style="color:var(--gold)">${bid.quantity}</span></div>
+        </div>
+      </div>`;
+  } else {
+    // Standard/palifico: show only relevant dice per player
+    playersRowHtml = revealedDice.map(pd => {
+      const color = PLAYER_COLORS[pd.colorIndex ?? 0];
+      const isMe  = pd.id === myId;
+      const relevant = [...pd.dice]
+        .filter(d => d === bid.face || (!isPalifico && d === 1 && bid.face !== 1))
+        .sort((a, b) => a - b);
+      if (!relevant.length) return '';
+      const diceHtml = relevant.map(d => makeColoredDie(d, color, 'small')).join('');
+      return `<div class="reveal-player-section">
+        <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
+        <div class="reveal-player-dice">${diceHtml}</div>
+      </div>`;
+    }).join('');
+    const bidDiceHtml = Array.from({ length: bid.quantity }, () => makeDie(bid.face, 'small')).join('');
+    bottomRowHtml = `
+      <div class="reveal-bid-row">
+        <span class="reveal-bid-label">Bid</span>
+        <div class="reveal-bid-dice">${bidDiceHtml}</div>
+      </div>`;
+  }
 
-  const loserQuips = gameMode === 'reverse' ? [
+  const loserQuips = isFaceoff ? [
+    `💀 ${esc(loserName)} lost the ultimate 1v1 showdown`,
+    `💀 ${esc(loserName)} miscounted in the final moment`,
+    `💀 ${esc(loserName)} failed their arithmetic exam`,
+    `💀 ${esc(loserName)} went down swinging in the faceoff`,
+    `💀 ${esc(loserName)} couldn't survive the duel`,
+  ] : gameMode === 'reverse' ? [
     `📈 ${esc(loserName)} is collecting dice like they cost nothing`,
     `📦 ${esc(loserName)} added to their growing problem`,
     `🎲 ${esc(loserName)} has too many dice and not enough skill`,
@@ -600,19 +703,20 @@ function showReveal(r) {
   ];
   const loserLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
 
+  const outcomeText = isFaceoff
+    ? (bidMet
+        ? `✓ Sum is ${count} ≥ ${bid.quantity} — <strong>${esc(challengerName)}</strong> loses`
+        : `✗ Sum is ${count}, bid was ${bid.quantity} — <strong>${esc(bidderName)}</strong> loses`)
+    : (bidMet
+        ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
+        : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`);
+
   document.getElementById('reveal-all-dice').innerHTML = `
     <div class="reveal-players-row">${playersRowHtml}</div>
-    <div class="reveal-bid-row">
-      <span class="reveal-bid-label">Bid</span>
-      <div class="reveal-bid-dice">${bidDiceHtml}</div>
-    </div>`;
+    ${bottomRowHtml}`;
 
   document.getElementById('reveal-summary').innerHTML = `
-    <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">
-      ${bidMet
-        ? `✓ Bid correct! <strong>${esc(challengerName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`
-        : `✗ Bid wrong! <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`}
-    </div>
+    <div class="reveal-outcome ${bidMet ? 'win' : 'lose'}">${outcomeText}</div>
     <div class="reveal-loser-line">${loserLine}</div>`;
 
   hideEl('btn-next-round');

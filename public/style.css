@@ -314,7 +314,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 #reveal-all-dice { margin-bottom: 20px; }
 .reveal-players-row {
   display: flex; flex-wrap: wrap; align-items: flex-end;
-  gap: 0; margin-bottom: 12px;
+  gap: 0 6px; margin-bottom: 12px;
 }
 .reveal-player-section { display: flex; flex-direction: column; }
 .reveal-player-name {
@@ -403,9 +403,9 @@ input[type="text"]::placeholder { color: var(--muted); }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   z-index: 85;
 }
-#woah-phase1 { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+#woah-phase1 { display: flex; flex-direction: column; align-items: center; }
 #woah-img-wrap {
-  display: flex;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
   animation: woahSpin 2s cubic-bezier(.4,0,.6,1) forwards;
 }
 @keyframes woahSpin {
@@ -417,7 +417,6 @@ input[type="text"]::placeholder { color: var(--muted); }
   font-size: 5rem; font-weight: 900; color: #fff; line-height: 1;
   letter-spacing: 6px;
   text-shadow: 0 0 40px rgba(255,255,255,.5);
-  animation: woahSpin 2s cubic-bezier(.4,0,.6,1) forwards;
 }
 #woah-phase2 { text-align: center; }
 #woah-above {
@@ -579,3 +578,36 @@ input[type="text"]::placeholder { color: var(--muted); }
   .face-btn { width: 44px; height: 44px; }
   .face-btn .die { width: 30px; height: 30px; }
 }
+
+/* ── Faceoff Overlay ─────────────────────────────────────────────────────── */
+#faceoff-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.88);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 80;
+}
+#faceoff-text {
+  font-size: 7rem; font-weight: 900; line-height: 1; letter-spacing: 4px;
+  color: var(--accent);
+  text-shadow: 0 0 50px rgba(233,69,96,.95), 0 0 110px rgba(233,69,96,.5);
+  animation: palificoPop 2s cubic-bezier(.22,1,.36,1) forwards;
+}
+#faceoff-sub {
+  font-size: 1.15rem; color: #fde68a; margin-top: 14px; font-weight: 500;
+  opacity: 0; animation: fadeInUp .5s .35s ease forwards;
+}
+
+/* ── Faceoff badge ───────────────────────────────────────────────────────── */
+#faceoff-badge {
+  background: rgba(233,69,96,.2); color: var(--accent);
+  border: 1px solid rgba(233,69,96,.5); border-radius: 20px;
+  padding: 3px 12px; font-weight: 700; font-size: .75rem; letter-spacing: 1.5px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Faceoff reveal sum display ──────────────────────────────────────────── */
+.reveal-bid-sum {
+  font-size: 2.2rem; font-weight: 900; color: var(--text); line-height: 1;
+}
+
+/* ── Hide reverse mode (not yet enabled) ────────────────────────────────── */
+#mode-selector { display: none !important; }

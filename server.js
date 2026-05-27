@@ -25,6 +25,7 @@ const room = {
   currentBid: null,
   firstBidOfRound: true,
   isPalifico: false,
+  isFaceoff: false,
   palificoFace: null,
   palificoTriggerPlayer: null,
   roundNumber: 0,
@@ -59,6 +60,7 @@ function publicState() {
     currentBid: room.currentBid,
     firstBidOfRound: room.firstBidOfRound,
     isPalifico: room.isPalifico,
+    isFaceoff: room.isFaceoff,
     palificoFace: room.palificoFace,
     roundNumber: room.roundNumber,
     host: room.host,
@@ -72,6 +74,7 @@ function resetToLobby() {
   room.currentBid = null;
   room.firstBidOfRound = true;
   room.isPalifico = false;
+  room.isFaceoff = false;
   room.palificoFace = null;
   room.palificoTriggerPlayer = null;
   room.currentPlayerIndex = 0;
@@ -89,8 +92,17 @@ function resetToLobby() {
 // ─────────────────────────────────────────
 
 function validateBid(qty, face) {
-  if (!Number.isInteger(face) || face < 1 || face > 6) return { valid: false, reason: 'Invalid face value' };
   if (!Number.isInteger(qty) || qty < 1) return { valid: false, reason: 'Quantity must be at least 1' };
+
+  // Faceoff: bid is a claimed sum of both dice (2–12), no face needed
+  if (room.isFaceoff) {
+    if (qty > 12) return { valid: false, reason: 'Sum cannot exceed 12' };
+    if (!room.currentBid) return { valid: true };
+    if (qty <= room.currentBid.quantity) return { valid: false, reason: 'Must bid a higher sum' };
+    return { valid: true };
+  }
+
+  if (!Number.isInteger(face) || face < 1 || face > 6) return { valid: false, reason: 'Invalid face value' };
 
   const cur = room.currentBid;
 
@@ -141,14 +153,24 @@ function startRound() {
   room.lastBidderIndex = -1;
   room.revealResolved = false;
 
-  const cp = room.players[room.currentPlayerIndex];
-  if (room.palificoTriggerPlayer && room.palificoTriggerPlayer === cp?.id) {
-    room.isPalifico = true;
+  // Faceoff: 2 players each with exactly 1 die — takes priority over palifico
+  const isFaceoffRound = room.players.length === 2 && room.players.every(p => p.diceCount === 1);
+  if (isFaceoffRound) {
+    room.isFaceoff = true;
+    room.isPalifico = false;
     room.palificoFace = null;
     room.palificoTriggerPlayer = null;
   } else {
-    room.isPalifico = false;
-    room.palificoFace = null;
+    room.isFaceoff = false;
+    const cp = room.players[room.currentPlayerIndex];
+    if (room.palificoTriggerPlayer && room.palificoTriggerPlayer === cp?.id) {
+      room.isPalifico = true;
+      room.palificoFace = null;
+      room.palificoTriggerPlayer = null;
+    } else {
+      room.isPalifico = false;
+      room.palificoFace = null;
+    }
   }
 
   room.players.forEach(p => {
@@ -269,7 +291,7 @@ io.on('connection', socket => {
     if (room.isPalifico && room.firstBidOfRound) room.palificoFace = f;
 
     room.lastBidderIndex  = room.currentPlayerIndex;
-    room.currentBid       = { quantity: qty, face: f };
+    room.currentBid       = { quantity: qty, face: room.isFaceoff ? null : f };
     room.firstBidOfRound  = false;
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
 
@@ -294,10 +316,14 @@ io.on('connection', socket => {
     let count = 0;
     const revealedDice = room.players.map(p => {
       const pd = { id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0 };
-      p.dice.forEach(d => {
-        if (room.isPalifico) { if (d === bid.face) count++; }
-        else                  { if (d === bid.face || d === 1) count++; }
-      });
+      if (room.isFaceoff) {
+        count += p.dice.reduce((s, d) => s + d, 0);
+      } else {
+        p.dice.forEach(d => {
+          if (room.isPalifico) { if (d === bid.face) count++; }
+          else                  { if (d === bid.face || d === 1) count++; }
+        });
+      }
       return pd;
     });
 
@@ -307,6 +333,7 @@ io.on('connection', socket => {
     const result = {
       revealedDice, bid, count, bidMet,
       isPalifico: room.isPalifico,
+      isFaceoff: room.isFaceoff,
       gameMode: room.gameMode,
       bidderName: bidder.name,
       challengerName: challenger.name,

@@ -71,13 +71,19 @@
           <path d="M 205 56 Q 207 42 202 36" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
           <path d="M 194 55 Q 192 41 186 38" fill="none" stroke="#ddd0bc" stroke-width="7" stroke-linecap="round"/>
         </svg>
+        <div id="woah-label">WOAH</div>
       </div>
-      <div id="woah-label">WOAH</div>
     </div>
     <div id="woah-phase2" class="hidden">
       <div id="woah-above"></div>
       <div id="woah-send">SEND THEM HOME</div>
     </div>
+  </div>
+
+  <!-- FACEOFF overlay -->
+  <div id="faceoff-overlay" class="hidden">
+    <div id="faceoff-text">FACEOFF!</div>
+    <div id="faceoff-sub"></div>
   </div>
 
   <!-- PALIFICO overlay -->
@@ -167,6 +173,7 @@
         <span id="round-label">Round 1</span>
         <span id="mode-badge" class="hidden">🔄 REVERSE</span>
         <span id="palifico-badge" class="hidden">🔥 PALIFICO</span>
+        <span id="faceoff-badge" class="hidden">⚔️ FACEOFF</span>
       </div>
 
       <!-- Bid + Quick Maths side by side -->
@@ -197,14 +204,14 @@
         <div id="palifico-notice" class="hidden">🔥 PALIFICO ROUND — no wilds, same face only</div>
         <div id="bid-controls">
           <div class="control-group">
-            <label>Quantity</label>
+            <label id="qty-label">Quantity</label>
             <div class="qty-control">
               <button id="qty-down" class="btn-stepper">−</button>
               <span id="qty-val">1</span>
               <button id="qty-up" class="btn-stepper">+</button>
             </div>
           </div>
-          <div class="control-group">
+          <div class="control-group" id="face-control">
             <label>Face</label>
             <div id="face-picker"><!-- populated by JS --></div>
           </div>
