@@ -355,12 +355,16 @@ input[type="text"]::placeholder { color: var(--muted); }
 #reveal-all-dice { margin-bottom: 20px; }
 .reveal-players-row {
   display: flex; flex-wrap: wrap; align-items: flex-end;
-  gap: 0 3px; margin-bottom: 12px;
+  gap: 0 10px; margin-bottom: 12px;
 }
-.reveal-player-section { display: flex; flex-direction: column; }
+.reveal-player-section {
+  display: flex; flex-direction: column; align-items: flex-start;
+  position: relative; padding-top: 20px;
+}
 .reveal-player-name {
+  position: absolute; top: 0; left: 0;
   font-size: .62rem; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.5px; margin-bottom: 4px; white-space: nowrap;
+  letter-spacing: 0.5px; white-space: nowrap;
 }
 .reveal-player-dice { display: flex; flex-wrap: wrap; gap: 3px; }
 

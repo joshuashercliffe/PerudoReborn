@@ -791,7 +791,7 @@ function showReveal(r) {
         : `✓ Call successful — <strong>${esc(bidderName)}</strong> loses${gameMode === 'reverse' ? '' : ' a die'}`);
 
   const countLine = isFaceoff ? '' :
-    `<div class="reveal-count-line">Found <strong>${count}</strong> matching ${count === 1 ? 'die' : 'dice'}</div>`;
+    `<div class="reveal-count-line">There were actually <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>`;
 
   document.getElementById('reveal-all-dice').innerHTML = `
     <div class="reveal-players-row">${playersRowHtml}</div>

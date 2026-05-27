@@ -9,7 +9,12 @@ const server = http.createServer(app);
 const io = new Server(server, { pingTimeout: 60000 });
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+  }
+}));
 
 // All active players join the 'game' socket.io room for broadcasts
 const ROOM = 'game';
