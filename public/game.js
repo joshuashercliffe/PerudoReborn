@@ -768,6 +768,9 @@ socket.on('liar_called', ({ challengerName, isPeak }) => {
   setTimeout(() => hideEl(overlay), 1800);
 });
 
+let peakOverlayActive = false;
+let pendingChallengeResult = null;
+
 function showPeakOverlay(challengerName) {
   const overlay = document.getElementById('peak-overlay');
   document.getElementById('peak-sub').textContent = `${challengerName} just got PEAKED`;
@@ -777,8 +780,17 @@ function showPeakOverlay(challengerName) {
     void el.offsetWidth;
     el.style.animation = '';
   });
+  peakOverlayActive = true;
   showEl(overlay);
-  setTimeout(() => hideEl(overlay), 5250);
+  setTimeout(() => {
+    hideEl(overlay);
+    peakOverlayActive = false;
+    if (pendingChallengeResult) {
+      const result = pendingChallengeResult;
+      pendingChallengeResult = null;
+      showReveal(result);
+    }
+  }, 3500);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -787,8 +799,12 @@ function showPeakOverlay(challengerName) {
 socket.on('challenge_result', result => {
   hideEl('action-ui');
   hideEl('liar-overlay');
-  hideEl('peak-overlay');
   hideEl('woah-overlay');
+  if (peakOverlayActive) {
+    pendingChallengeResult = result;
+    return;
+  }
+  hideEl('peak-overlay');
   showReveal(result);
 });
 
