@@ -199,7 +199,7 @@ function validateBid(qty, face, room) {
   }
 
   if (cur.face === 1 && face !== 1) {
-    const min = cur.quantity * 2;
+    const min = cur.quantity * 2 + 1;
     if (qty < min) return { valid: false, reason: `Need at least ${min} to switch from 1s` };
     return { valid: true };
   }
