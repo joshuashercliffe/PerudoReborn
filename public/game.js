@@ -270,14 +270,17 @@ function renderLobby(state) {
     document.getElementById('room-code-value').textContent = currentRoomId;
   }
 
+  const iAmLobbyHost = pid() === state.host;
   document.getElementById('lobby-players').innerHTML = state.players.map(pl => {
-    const isHost = pl.id === state.host;
-    const isMe   = pl.id === pid();
-    return `<div class="lobby-player${isHost ? ' is-host' : ''}">
-      <span class="player-name">${esc(pl.name)}</span>
+    const isHost  = pl.id === state.host;
+    const isMe    = pl.id === pid();
+    const canKick = iAmLobbyHost && !pl.connected && !isMe;
+    return `<div class="lobby-player${isHost ? ' is-host' : ''}${!pl.connected ? ' disconnected' : ''}">
+      <span class="player-name">${esc(pl.name)}${!pl.connected ? ' <span class="muted-msg">(disconnected)</span>' : ''}</span>
       <div style="display:flex;gap:6px;align-items:center">
         ${isHost ? '<span class="host-chip">Host</span>' : ''}
         ${isMe   ? '<span class="you-chip">You</span>'  : ''}
+        ${canKick ? `<button class="btn-kick" data-id="${esc(pl.id)}">Kick</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -315,6 +318,10 @@ function renderLobby(state) {
 
 document.getElementById('btn-start').addEventListener('click', () => p().socket.emit('start_game'));
 document.getElementById('btn-leave-lobby').addEventListener('click', () => p().socket.emit('leave_lobby'));
+document.getElementById('lobby-players').addEventListener('click', e => {
+  const btn = e.target.closest('.btn-kick');
+  if (btn) p().socket.emit('kick_player', { playerId: btn.dataset.id });
+});
 socket1.on('start_error', ({ message }) => toast(message, 'error'));
 
 document.getElementById('mode-btns').addEventListener('click', e => {
@@ -491,13 +498,16 @@ function renderGame() {
 }
 
 function renderPlayersBar() {
+  const iAmHost = pid() === gs.host;
   document.getElementById('players-bar').innerHTML = gs.players.map(pl => {
-    const active = pl.id === gs.currentPlayerId;
-    const me     = pl.id === pid();
+    const active   = pl.id === gs.currentPlayerId;
+    const me       = pl.id === pid();
+    const canKick  = iAmHost && !pl.connected && !me;
     return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!pl.connected ? ' disconnected' : ''}">
       <div class="chip-name" title="${esc(pl.name)}">${esc(pl.name)}${me ? ' ★' : ''}</div>
       <div class="chip-dice">${pl.diceCount} 🎲</div>
       ${active ? '<div class="chip-turn">▶ turn</div>' : ''}
+      ${canKick ? `<button class="btn-kick" data-id="${esc(pl.id)}">Kick</button>` : ''}
     </div>`;
   }).join('');
 
@@ -735,6 +745,11 @@ document.getElementById('btn-bid').addEventListener('click', () => {
 
 document.getElementById('btn-challenge').addEventListener('click', () => {
   p().socket.emit('challenge');
+});
+
+document.getElementById('players-bar').addEventListener('click', e => {
+  const btn = e.target.closest('.btn-kick');
+  if (btn) p().socket.emit('kick_player', { playerId: btn.dataset.id });
 });
 
 document.getElementById('btn-autoliar').addEventListener('click', () => {
@@ -1022,6 +1037,8 @@ socket1.on('player_eliminated', ({ playerId, playerName, reason }) => {
       `${playerName} has been defeated by ping`,
     ];
     toast(disconnectQuips[Math.floor(Math.random() * disconnectQuips.length)], 'warn');
+  } else if (reason === 'kick') {
+    toast(`${playerName} was kicked by the host`, 'warn');
   }
   animateElimination(playerName);
 });

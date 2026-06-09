@@ -844,3 +844,19 @@ input[type="text"]::placeholder { color: var(--muted); }
   color: #fff;
 }
 body.dual-mode .screen { padding-top: 44px; }
+
+/* ── Kick button ────────────────────────────────────────────────────────── */
+.btn-kick {
+  background: rgba(239,68,68,.15);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,.35);
+  border-radius: 6px;
+  font-size: .7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.btn-kick:hover { background: rgba(239,68,68,.3); border-color: var(--danger); }

@@ -644,6 +644,43 @@ io.on('connection', socket => {
     rooms.delete(roomId);
   });
 
+  // ── Kick player (host only) ───────────
+  socket.on('kick_player', ({ playerId }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (socket.id !== room.host) return;
+
+    const idx = room.players.findIndex(p => p.id === playerId && !p.connected);
+    if (idx === -1) return;
+
+    const player = room.players[idx];
+    if (player.disconnectTimer) { clearTimeout(player.disconnectTimer); player.disconnectTimer = null; }
+
+    room.players.splice(idx, 1);
+    socketToRoom.delete(playerId);
+    for (const t of Object.keys(sessions)) {
+      if (sessions[t].socketId === playerId) { delete sessions[t]; break; }
+    }
+
+    if (room.phase === 'lobby' || room.phase === 'over') {
+      if (room.host === playerId && room.players.length > 0) room.host = room.players[0].id;
+      io.to(roomId).emit('lobby_update', publicState(room));
+      if (room.players.length === 0) rooms.delete(roomId);
+      return;
+    }
+
+    io.to(roomId).emit('player_eliminated', { playerId, playerName: player.name, reason: 'kick' });
+
+    if (room.players.length <= 1) {
+      room.phase = 'over';
+      io.to(roomId).emit('game_over', { winner: room.players[0]?.name ?? 'Nobody' });
+      return;
+    }
+
+    if (room.currentPlayerIndex >= room.players.length) room.currentPlayerIndex = 0;
+    setTimeout(() => startRound(room, roomId), 500);
+  });
+
   // ── Disconnect ────────────────────────
   socket.on('disconnect', () => {
     const roomId = socketToRoom.get(socket.id);
@@ -679,31 +716,7 @@ io.on('connection', socket => {
       }, 60000);
     } else {
       io.to(roomId).emit('player_disconnected', { playerName: player.name, gameState: publicState(room) });
-
-      const disconnectRound = room.roundNumber;
-      player.disconnectTimer = setTimeout(() => {
-        const stillIdx = room.players.findIndex(p => p.id === socket.id);
-        if (stillIdx === -1 || room.players[stillIdx].connected) return;
-
-        room.players.splice(stillIdx, 1);
-        socketToRoom.delete(socket.id);
-        io.to(roomId).emit('player_eliminated', { playerId: socket.id, playerName: player.name, reason: 'disconnect' });
-
-        if (room.players.length <= 1) {
-          room.phase = 'over';
-          io.to(roomId).emit('game_over', { winner: room.players[0]?.name ?? 'Nobody' });
-          return;
-        }
-
-        if (room.currentPlayerIndex >= room.players.length) {
-          room.currentPlayerIndex = 0;
-        }
-
-        if (room.phase === 'playing' && room.roundNumber === disconnectRound) {
-          room.roundNumber++;
-          setTimeout(() => startRound(room, roomId), 1000);
-        }
-      }, 60000);
+      // No auto-elimination timer — host can kick disconnected players manually
     }
   });
 });
