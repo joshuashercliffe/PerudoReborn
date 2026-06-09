@@ -57,7 +57,7 @@ socket1.on('server_stats', ({ games, players }) => {
 // ─── Per-player state ─────────────────────────────────────────────────────────
 // PS[0] = primary player; extra test players are pushed as PS[1], PS[2], …
 const PS = [
-  { socket: socket1, id: null, name: null, dice: [], autoLiar: false },
+  { socket: socket1, id: null, name: null, dice: [], autoLiar: false, lockedBid: null },
 ];
 let activeIdx     = 0;   // which player the UI is currently controlling
 let dualMode      = false;
@@ -67,6 +67,8 @@ let testMode      = false;
 let gs             = null;
 let selQty         = 1;
 let selFace        = 2;
+let lbQty          = 1;
+let lbFace         = 2;
 let bidHistory     = [];
 let showBidHistory = localStorage.getItem('showBidHistory') === 'true';
 let hideDice       = false;
@@ -451,7 +453,7 @@ document.getElementById('p2-name-input').addEventListener('keydown', e => {
 function initTestPlayer(name) {
   const idx    = PS.length;
   const socket = io();
-  PS.push({ socket, id: null, name: null, dice: [], autoLiar: false });
+  PS.push({ socket, id: null, name: null, dice: [], autoLiar: false, lockedBid: null });
 
   if (!dualMode) {
     dualMode = true;
@@ -619,6 +621,74 @@ function updateBidHistoryVisibility() {
   });
 })();
 
+(function initLbFacePicker() {
+  const picker = document.getElementById('lb-face-picker');
+  picker.innerHTML = [1,2,3,4,5,6].map(f =>
+    `<button class="face-btn" data-face="${f}">${makeDie(f)}</button>`
+  ).join('');
+  picker.addEventListener('click', e => {
+    const btn = e.target.closest('.face-btn');
+    if (!btn || btn.disabled) return;
+    lbFace = parseInt(btn.dataset.face, 10);
+    refreshLockBidControls();
+  });
+})();
+
+function refreshLockBidControls() {
+  document.getElementById('lb-qty-val').textContent = lbQty;
+  if (gs && !gs.isFaceoff) {
+    document.querySelectorAll('#lb-face-picker .face-btn').forEach(btn => {
+      const f = parseInt(btn.dataset.face, 10);
+      btn.classList.toggle('selected', f === lbFace);
+      btn.disabled = !!(gs.isPalifico && gs.palificoFace !== null && pdice().length > 1 && f !== gs.palificoFace);
+    });
+  }
+  const v = gs ? clientValidate(gs, lbQty, gs.isFaceoff ? 0 : lbFace) : { ok: false, why: '' };
+  document.getElementById('lb-hint-msg').textContent = v.ok ? '' : v.why;
+  document.getElementById('btn-lock-bid').disabled = !v.ok;
+}
+
+function renderLockBidSection() {
+  if (!gs || gs.isInPerson || gs.phase !== 'playing' || gs.currentPlayerId === pid()) {
+    hideEl('lockbid-section');
+    return;
+  }
+  showEl('lockbid-section');
+  const locked = p()?.lockedBid;
+  if (locked) {
+    hideEl('lockbid-input');
+    showEl('lockbid-locked');
+    const label = locked.face
+      ? `🔒 ${locked.quantity} × ${makeDie(locked.face, 'tiny')}`
+      : `🔒 Sum: ${locked.quantity}`;
+    document.getElementById('lockbid-locked-label').innerHTML = label;
+  } else {
+    showEl('lockbid-input');
+    hideEl('lockbid-locked');
+    gs.isFaceoff ? hideEl('lb-face-picker') : showEl('lb-face-picker');
+    refreshLockBidControls();
+  }
+}
+
+document.getElementById('lb-qty-down').addEventListener('click', () => { lbQty = Math.max(1, lbQty - 1); refreshLockBidControls(); });
+document.getElementById('lb-qty-up').addEventListener('click',   () => { lbQty = gs?.isFaceoff ? Math.min(12, lbQty + 1) : lbQty + 1; refreshLockBidControls(); });
+
+document.getElementById('btn-lock-bid').addEventListener('click', () => {
+  if (!gs) return;
+  const face = gs.isFaceoff ? null : lbFace;
+  const v = clientValidate(gs, lbQty, gs.isFaceoff ? 0 : lbFace);
+  if (!v.ok) return;
+  const label = face ? `${lbQty} × ${FACE_NAME[face]}` : `sum ${lbQty}`;
+  if (!confirm(`Lock in bid: ${label}?`)) return;
+  p().lockedBid = { quantity: lbQty, face };
+  renderLockBidSection();
+});
+
+document.getElementById('btn-unlock-bid').addEventListener('click', () => {
+  p().lockedBid = null;
+  renderLockBidSection();
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // In-person mode
 // ─────────────────────────────────────────────────────────────────────────────
@@ -739,9 +809,11 @@ socket1.on('ip_challenge_cancelled', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 socket1.on('round_start', state => {
   gs = state;
-  PS[0].dice     = [];
-  PS[0].autoLiar = (state.autoLiarPlayerId === PS[0].id);
-  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.autoLiar = (state.autoLiarPlayerId === ps.id); } });
+  PS[0].dice      = [];
+  PS[0].autoLiar  = (state.autoLiarPlayerId === PS[0].id);
+  PS[0].lockedBid = null;
+  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; } });
+  lbQty = 1; lbFace = 2;
   diceRevealed = false;
   ipChallengePending = false;
   hideEl('ip-confirm-overlay');
@@ -799,6 +871,7 @@ function renderGame() {
   renderMyDice();
   renderActionUI();
   renderAutoLiarBtn();
+  renderLockBidSection();
   renderReactionButtons();
 }
 
@@ -1215,6 +1288,22 @@ socket1.on('bid_made', ({ bid, bidderName, gameState: state }) => {
     const quickMath = totalDice / 3;
     if (bid.quantity >= quickMath + 2) {
       showWoahOverlay(Math.round(bid.quantity - quickMath));
+    }
+  }
+
+  // Auto-fire locked bid if it's now my turn
+  if (gs.currentPlayerId === pid() && p()?.lockedBid) {
+    const lb = p().lockedBid;
+    p().lockedBid = null;
+    const faceArg = gs.isFaceoff ? 0 : (lb.face ?? 0);
+    const v = clientValidate(gs, lb.quantity, faceArg);
+    if (v.ok) {
+      p().socket.emit('make_bid', { quantity: lb.quantity, face: faceArg });
+      const label = lb.face ? `${lb.quantity} ${FACE_NAME[lb.face]}` : `sum ${lb.quantity}`;
+      toast(`Auto-bid: ${label}`, 'ok');
+    } else {
+      toast('Locked bid no longer valid — bid manually', 'warn');
+      renderLockBidSection();
     }
   }
 });
