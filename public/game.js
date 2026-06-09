@@ -489,6 +489,8 @@ function updateToggleLabels() {
 function switchPlayer(idx) {
   if (!PS[idx]) return;
   activeIdx = idx;
+  hideEl('ip-confirm-overlay');
+  hideEl('ip-liar-overlay');
   updateToggleLabels();
   if (document.getElementById('screen-lobby').classList.contains('active') && gs) {
     renderLobby(gs);
