@@ -812,3 +812,35 @@ input[type="text"]::placeholder { color: var(--muted); }
 
 /* ── Hide reverse mode (not yet enabled) ────────────────────────────────── */
 #mode-selector { display: none !important; }
+
+/* ── Player toggle (dual-player mode) ──────────────────────────────────── */
+#player-toggle {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 300;
+  display: flex;
+  gap: 8px;
+  padding: 7px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  justify-content: center;
+}
+.ptoggle-btn {
+  padding: 5px 22px;
+  border-radius: 20px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  transition: all .15s;
+  touch-action: manipulation;
+}
+.ptoggle-btn.ptoggle-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+body.dual-mode .screen { padding-top: 44px; }

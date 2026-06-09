@@ -8,6 +8,12 @@
 </head>
 <body>
 
+  <!-- Player toggle — visible only in dual-player mode -->
+  <div id="player-toggle" class="hidden">
+    <button id="toggle-p0" class="ptoggle-btn ptoggle-active">P1: —</button>
+    <button id="toggle-p1" class="ptoggle-btn">P2: —</button>
+  </div>
+
   <!-- Elimination overlay -->
   <div id="elimination-overlay" class="hidden">
     <div id="elimination-name"></div>
@@ -197,6 +203,16 @@
         <div class="section-label" style="margin-bottom:8px">Options</div>
         <button id="btn-variable" class="option-toggle-btn" data-active="false">📊 Variable Mode</button>
         <p id="variable-desc" class="muted-msg" style="text-align:center;margin-top:6px;font-size:.8rem">Lose/gain dice equal to how wrong the bid was</p>
+      </div>
+
+      <!-- P2 setup — shown automatically when Davetest joins -->
+      <div id="p2-setup" class="hidden" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="section-label" style="margin-bottom:8px">Add second player</div>
+        <div style="display:flex;gap:8px">
+          <input id="p2-name-input" type="text" placeholder="Player 2 name" value="Player 2" maxlength="20"
+                 autocomplete="off" style="margin-bottom:0;flex:1">
+          <button id="btn-add-p2" class="btn btn-secondary" style="width:auto;margin-top:0;padding:0 20px">Add</button>
+        </div>
       </div>
 
       <button id="btn-start" class="btn btn-primary hidden">Start Game</button>
