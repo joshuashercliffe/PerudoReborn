@@ -59,6 +59,7 @@ const PS = [
 ];
 let activeIdx     = 0;   // which player the UI is currently controlling
 let dualMode      = false;
+let testMode      = false;
 
 // Shared game state
 let gs             = null;
@@ -186,7 +187,10 @@ btnLandingAction.addEventListener('click', () => {
   if (!getLandingName()) { landingNameInput.focus(); return; }
   hideEl('landing-error');
   const code = roomCodeInput.value.trim().toUpperCase();
-  if (code) {
+  if (code === 'TEST') {
+    testMode = true;
+    socket1.emit('create_room');
+  } else if (code) {
     socket1.emit('join_game', { roomId: code });
   } else {
     socket1.emit('create_room');
@@ -232,9 +236,9 @@ socket1.on('joined_lobby', state => {
   showScreen('screen-lobby');
   renderLobby(state);
 
-  // Trigger dual-player mode when username is Davetest
-  if (PS[0].name?.toLowerCase() === 'davetest' && !dualMode) {
+  if (testMode && !dualMode) {
     showEl('p2-setup');
+    testMode = false;
   }
 });
 
@@ -1270,7 +1274,7 @@ socket1.on('reveal_resolved', () => {
 
 document.getElementById('btn-next-round').addEventListener('click', () => {
   hideEl('reveal-overlay');
-  // Send for every local socket so dual-player (Davetest) mode satisfies allReady
+  // Send for every local socket so dual-player mode satisfies allReady
   PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
 });
 
