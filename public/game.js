@@ -100,7 +100,6 @@ function esc(s) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  id === 'screen-game' ? showEl('game-menu-wrap') : hideEl('game-menu-wrap');
 }
 
 function showEl(id) { const el = typeof id === 'string' ? document.getElementById(id) : id; el?.classList.remove('hidden'); }
@@ -441,11 +440,6 @@ document.getElementById('p2-name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-add-p2').click();
 });
 
-// Event delegation for dynamically generated toggle buttons
-document.getElementById('player-toggle').addEventListener('click', e => {
-  const btn = e.target.closest('[data-idx]');
-  if (btn) switchPlayer(parseInt(btn.dataset.idx, 10));
-});
 
 function initTestPlayer(name) {
   const idx    = PS.length;
@@ -455,7 +449,6 @@ function initTestPlayer(name) {
   if (!dualMode) {
     dualMode = true;
     document.body.classList.add('dual-mode');
-    showEl('player-toggle');
   }
   updateToggleLabels();
 
@@ -501,12 +494,7 @@ function initTestPlayer(name) {
 }
 
 function updateToggleLabels() {
-  document.getElementById('player-toggle').innerHTML = PS.map((ps, i) => {
-    const player  = gs?.players?.find(p => p.id === ps?.id);
-    const dice    = player ? ' ' + '🎲'.repeat(player.diceCount) : '';
-    const active  = i === activeIdx ? ' ptoggle-active' : '';
-    return `<button class="ptoggle-btn${active}" data-idx="${i}">${(ps?.name ?? '—') + dice}</button>`;
-  }).join('');
+  if (gs) renderPlayersBar();
 }
 
 function switchPlayer(idx) {
@@ -809,15 +797,18 @@ function renderGame() {
 }
 
 function renderPlayersBar() {
-  const iAmHost = pid() === gs.host;
-  document.getElementById('players-bar').innerHTML = gs.players.map(pl => {
+  const myId    = pid();
+  const iAmHost = myId === gs.host;
+  // Put viewing player first, then rest in original order
+  const sorted  = [...gs.players].sort((a, b) => a.id === myId ? -1 : b.id === myId ? 1 : 0);
+  document.getElementById('players-bar').innerHTML = sorted.map(pl => {
     const active   = pl.id === gs.currentPlayerId;
-    const me       = pl.id === pid();
+    const me       = pl.id === myId;
     const canKick  = iAmHost && !pl.connected && !me;
-    return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!pl.connected ? ' disconnected' : ''}">
+    const dice     = '🎲'.repeat(pl.diceCount) || '—';
+    return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!pl.connected ? ' disconnected' : ''}" data-id="${esc(pl.id)}">
       <div class="chip-name" title="${esc(pl.name)}">${esc(pl.name)}${me ? ' ★' : ''}</div>
-      <div class="chip-dice">${pl.diceCount} 🎲</div>
-      ${active ? '<div class="chip-turn">▶ turn</div>' : ''}
+      <div class="chip-dice">${dice}</div>
       ${canKick ? `<button class="btn-kick" data-id="${esc(pl.id)}">Kick</button>` : ''}
     </div>`;
   }).join('');
@@ -1113,8 +1104,13 @@ document.getElementById('btn-challenge').addEventListener('click', () => {
 });
 
 document.getElementById('players-bar').addEventListener('click', e => {
-  const btn = e.target.closest('.btn-kick');
-  if (btn) p().socket.emit('kick_player', { playerId: btn.dataset.id });
+  const kickBtn = e.target.closest('.btn-kick');
+  if (kickBtn) { p().socket.emit('kick_player', { playerId: kickBtn.dataset.id }); return; }
+  if (!dualMode) return;
+  const chip = e.target.closest('.player-chip[data-id]');
+  if (!chip) return;
+  const psIdx = PS.findIndex(ps => ps?.id === chip.dataset.id);
+  if (psIdx > -1) switchPlayer(psIdx);
 });
 
 document.getElementById('btn-autoliar').addEventListener('click', () => {
@@ -1514,8 +1510,6 @@ socket1.on('game_reset', () => {
     dualMode   = false;
     activeIdx  = 0;
     document.body.classList.remove('dual-mode');
-    hideEl('player-toggle');
-    updateToggleLabels();
   }
 
   document.getElementById('room-code-input').value = '';
