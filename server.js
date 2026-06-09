@@ -46,6 +46,7 @@ function createRoomState() {
     phase: 'lobby',
     gameMode: 'standard',
     isVariable: false,
+    isInPerson: false,
     players: [],
     host: null,
     currentPlayerIndex: 0,
@@ -91,6 +92,7 @@ function publicState(room) {
     totalDice:          room.players.reduce((s, p) => s + p.diceCount, 0),
     gameMode:           room.gameMode,
     isVariable:         room.isVariable,
+    isInPerson:         room.isInPerson,
     autoLiarPlayerId:   room.autoLiarPlayerId
   };
 }
@@ -484,6 +486,7 @@ io.on('connection', socket => {
     const ctx = getRoom(); if (!ctx) return;
     const { room, roomId } = ctx;
     if (room.phase !== 'lobby') return;
+    if (socket.id !== room.host) return;
     if (!['standard', 'reverse'].includes(mode)) return;
     room.gameMode = mode;
     io.to(roomId).emit('lobby_update', publicState(room));
@@ -494,7 +497,32 @@ io.on('connection', socket => {
     const ctx = getRoom(); if (!ctx) return;
     const { room, roomId } = ctx;
     if (room.phase !== 'lobby') return;
+    if (socket.id !== room.host) return;
     room.isVariable = !!value;
+    io.to(roomId).emit('lobby_update', publicState(room));
+  });
+
+  // ── Toggle in-person mode ──────────────
+  socket.on('set_inperson', ({ value }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'lobby') return;
+    if (socket.id !== room.host) return;
+    room.isInPerson = !!value;
+    io.to(roomId).emit('lobby_update', publicState(room));
+  });
+
+  // ── Reorder players (seating) ──────────
+  socket.on('reorder_players', ({ order }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'lobby') return;
+    if (socket.id !== room.host) return;
+    if (!Array.isArray(order) || order.length !== room.players.length) return;
+    const playerMap = new Map(room.players.map(p => [p.id, p]));
+    const reordered = order.map(id => playerMap.get(id)).filter(Boolean);
+    if (reordered.length !== room.players.length) return;
+    room.players = reordered;
     io.to(roomId).emit('lobby_update', publicState(room));
   });
 
@@ -525,7 +553,7 @@ io.on('connection', socket => {
     const ctx = getRoom(); if (!ctx) return;
     const { room, roomId } = ctx;
     if (room.phase !== 'lobby') return;
-    if (!room.players.find(p => p.id === socket.id)) return;
+    if (socket.id !== room.host) return socket.emit('start_error', { message: 'Only the host can start the game.' });
     purgeDead(room);
     if (room.players.length < 2) return socket.emit('start_error', { message: 'Need at least 2 players to start.' });
 

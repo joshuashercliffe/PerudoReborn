@@ -278,11 +278,13 @@ function renderLobby(state) {
   }
 
   const iAmLobbyHost = pid() === state.host;
-  document.getElementById('lobby-players').innerHTML = state.players.map(pl => {
+  document.getElementById('lobby-players').innerHTML = state.players.map((pl, idx) => {
     const isHost  = pl.id === state.host;
     const isMe    = pl.id === pid();
     const canKick = iAmLobbyHost && !pl.connected && !isMe;
-    return `<div class="lobby-player${isHost ? ' is-host' : ''}${!pl.connected ? ' disconnected' : ''}">
+    return `<div class="lobby-player${isHost ? ' is-host' : ''}${!pl.connected ? ' disconnected' : ''}"
+               data-id="${esc(pl.id)}" data-idx="${idx}" ${iAmLobbyHost ? 'draggable="true"' : ''}>
+      ${iAmLobbyHost ? '<span class="drag-handle">⠿</span>' : ''}
       <span class="player-name">${esc(pl.name)}${!pl.connected ? ' <span class="muted-msg">(disconnected)</span>' : ''}</span>
       <div style="display:flex;gap:6px;align-items:center">
         ${isHost ? '<span class="host-chip">Host</span>' : ''}
@@ -298,28 +300,36 @@ function renderLobby(state) {
   };
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === state.gameMode);
+    btn.disabled = !iAmLobbyHost;
   });
   document.getElementById('mode-desc').textContent = modeDescs[state.gameMode] ?? '';
 
   const varBtn = document.getElementById('btn-variable');
   varBtn.dataset.active = state.isVariable ? 'true' : 'false';
   varBtn.classList.toggle('active', !!state.isVariable);
+  varBtn.disabled = !iAmLobbyHost;
 
-  const startBtn  = document.getElementById('btn-start');
-  const hint      = document.getElementById('start-hint');
-  const amInLobby = state.players.some(pl => pl.id === PS[0].id);
-  if (amInLobby) {
+  const ipBtn = document.getElementById('btn-inperson');
+  ipBtn.dataset.active = state.isInPerson ? 'true' : 'false';
+  ipBtn.classList.toggle('active', !!state.isInPerson);
+  ipBtn.disabled = !iAmLobbyHost;
+
+  iAmLobbyHost ? hideEl('host-only-hint') : showEl('host-only-hint');
+
+  const startBtn = document.getElementById('btn-start');
+  const hint     = document.getElementById('start-hint');
+  if (iAmLobbyHost) {
     showEl(startBtn);
     if (state.players.length < 2) {
       startBtn.disabled = true;
       hint.textContent = 'Waiting for at least 2 players…';
     } else {
       startBtn.disabled = false;
-      hint.textContent = `${state.players.length} players ready — anyone can start!`;
+      hint.textContent = `${state.players.length} players ready`;
     }
   } else {
     hideEl(startBtn);
-    hint.textContent = '';
+    hint.textContent = 'Waiting for the host to start…';
   }
 }
 
@@ -345,6 +355,57 @@ document.getElementById('btn-copy-code').addEventListener('click', () => {
 document.getElementById('btn-variable').addEventListener('click', function() {
   const newVal = this.dataset.active !== 'true';
   p().socket.emit('set_variable', { value: newVal });
+});
+
+document.getElementById('btn-inperson').addEventListener('click', function() {
+  const newVal = this.dataset.active !== 'true';
+  p().socket.emit('set_inperson', { value: newVal });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lobby drag-to-reorder seating
+// ─────────────────────────────────────────────────────────────────────────────
+let dragSrcIdx = null;
+const lobbyList = document.getElementById('lobby-players');
+
+lobbyList.addEventListener('dragstart', e => {
+  const row = e.target.closest('[data-idx]');
+  if (!row) return;
+  dragSrcIdx = parseInt(row.dataset.idx, 10);
+  e.dataTransfer.effectAllowed = 'move';
+});
+
+lobbyList.addEventListener('dragover', e => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const row = e.target.closest('[data-idx]');
+  lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  if (row) row.classList.add('drag-over');
+});
+
+lobbyList.addEventListener('dragleave', e => {
+  if (!lobbyList.contains(e.relatedTarget)) {
+    lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  }
+});
+
+lobbyList.addEventListener('drop', e => {
+  e.preventDefault();
+  lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  const row = e.target.closest('[data-idx]');
+  if (!row || dragSrcIdx === null) { dragSrcIdx = null; return; }
+  const destIdx = parseInt(row.dataset.idx, 10);
+  if (dragSrcIdx === destIdx) { dragSrcIdx = null; return; }
+  const ids = gs.players.map(pl => pl.id);
+  const [moved] = ids.splice(dragSrcIdx, 1);
+  ids.splice(destIdx, 0, moved);
+  dragSrcIdx = null;
+  p().socket.emit('reorder_players', { order: ids });
+});
+
+lobbyList.addEventListener('dragend', () => {
+  dragSrcIdx = null;
+  lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
