@@ -258,6 +258,11 @@
         <span id="faceoff-badge" class="hidden">⚔️ FACEOFF</span>
       </div>
 
+      <!-- In-person mode: single Liar button for all players -->
+      <div id="ip-action-ui" class="hidden">
+        <button id="btn-ip-liar" class="btn btn-ip-liar">🚨 Call Liar</button>
+      </div>
+
       <!-- Bid history — shown above current bid when enabled -->
       <div id="bid-history-inline" class="hidden">
         <div id="bid-history-list"></div>
@@ -273,7 +278,7 @@
         <div id="quick-maths">
           <div class="info-label">Quick Maths</div>
           <div id="qm-value" class="qm-value">—</div>
-          <div class="info-sub"></div>
+          <div id="qm-sub" class="info-sub"></div>
         </div>
       </div>
 
@@ -303,21 +308,6 @@
         </div>
       </div>
 
-      <!-- In-person mode: single Liar button for all players -->
-      <div id="ip-action-ui" class="hidden">
-        <button id="btn-ip-liar" class="btn btn-ip-liar">🚨 Call Liar</button>
-      </div>
-
-      <div id="my-dice-section">
-        <div class="section-label">Your Dice
-          <span id="total-dice-note" class="muted-msg"></span>
-        </div>
-        <div id="dice-privacy-cover" class="hidden">
-          <span id="dice-reveal-hint"></span>
-        </div>
-        <div id="my-dice"></div>
-      </div>
-
       <!-- Autoliar — visible when not your turn -->
       <div id="autoliar-section" class="hidden">
         <button id="btn-autoliar" class="btn btn-autoliar">🔒 Lock in Autoliar</button>
@@ -327,6 +317,16 @@
       <div id="reaction-buttons" class="hidden">
         <button id="btn-react-ice" class="btn-react">🧊 ice</button>
         <button id="btn-react-fire" class="btn-react">🔥 hot</button>
+      </div>
+
+      <div id="my-dice-section">
+        <div class="section-label">Your Dice
+          <span id="total-dice-note" class="muted-msg"></span>
+        </div>
+        <div id="my-dice"></div>
+        <div id="dice-privacy-cover" class="hidden">
+          <span id="dice-reveal-hint"></span>
+        </div>
       </div>
 
       <button id="btn-end-game" class="btn btn-end-game">End Game</button>

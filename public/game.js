@@ -825,13 +825,17 @@ function renderQuickMaths() {
   if (gs.isFaceoff) {
     label.textContent = 'Sum Range';
     document.getElementById('qm-value').textContent = '2–12';
+    document.getElementById('qm-sub').textContent = '';
     document.getElementById('total-dice-note').textContent = '';
   } else {
     label.textContent = 'Quick Maths';
     const total = gs.players.reduce((s, pl) => s + pl.diceCount, 0);
     const qm = total / 3;
-    document.getElementById('qm-value').textContent = Number.isInteger(qm) ? String(qm) : qm.toFixed(2);
-    document.getElementById('total-dice-note').textContent = ` (${total} dice in play)`;
+    const qm1s = total / 6;
+    const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+    document.getElementById('qm-value').textContent = fmt(qm);
+    document.getElementById('qm-sub').textContent = `(${total} dice) · 1s: ${fmt(qm1s)}`;
+    document.getElementById('total-dice-note').textContent = '';
   }
 }
 
