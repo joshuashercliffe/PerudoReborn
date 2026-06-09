@@ -261,6 +261,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   box-shadow: 0 5px 18px rgba(245,166,35,.7), 0 2px 0 #c8960a;
 }
 .die.highlighted .dot { background: #92400e; }
+.die.dim { opacity: .25; }
 
 .dot {
   background: var(--dot-color);

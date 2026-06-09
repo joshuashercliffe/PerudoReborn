@@ -1263,11 +1263,10 @@ function showReveal(r) {
     playersRowHtml = revealedDice.map(pd => {
       const color = PLAYER_COLORS[pd.colorIndex ?? 0];
       const isMe  = pd.id === pid();
-      const relevant = [...pd.dice]
-        .filter(d => d === bid.face || (!isPalifico && d === 1 && bid.face !== 1))
-        .sort((a, b) => a - b);
-      if (!relevant.length) return '';
-      const diceHtml = relevant.map(d => makeColoredDie(d, color, 'small')).join('');
+      const diceHtml = pd.dice.map(d => {
+        const isMatch = d === bid.face || (!isPalifico && d === 1 && bid.face !== 1);
+        return makeDie(d, `small${isMatch ? ' highlighted' : ' dim'}`);
+      }).join('');
       return `<div class="reveal-player-section">
         <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
         <div class="reveal-player-dice">${diceHtml}</div>
