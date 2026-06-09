@@ -688,27 +688,44 @@ input[type="text"]::placeholder { color: var(--muted); }
 #ragequit-buttons { display: flex; gap: 10px; }
 #ragequit-buttons .btn { margin-top: 0; }
 
-/* ── Bid History ─────────────────────────────────────────────────────── */
-#bid-history-section {
+/* ── Game Menu ───────────────────────────────────────────────────────── */
+#game-menu-wrap {
+  position: fixed; top: 12px; right: 16px; z-index: 150;
+}
+body.dual-mode #game-menu-wrap { top: 56px; }
+.game-menu-btn {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--muted);
+  width: 34px; height: 34px; font-size: 1.3rem; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: color .15s, border-color .15s;
+}
+.game-menu-btn:hover { color: var(--text); border-color: rgba(255,255,255,.18); }
+#game-menu-panel {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 4px; min-width: 180px;
+  box-shadow: var(--shadow);
+}
+.menu-toggle-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; cursor: pointer; border-radius: 7px;
+  font-size: .88rem; color: var(--text); user-select: none;
+  transition: background .12s;
+}
+.menu-toggle-row:hover { background: rgba(255,255,255,.05); }
+.menu-toggle-row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+/* ── Bid History (inline, above current bid) ─────────────────────────── */
+#bid-history-inline {
   width: 100%; max-width: 540px;
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden;
 }
-#bid-history-section summary {
-  padding: 10px 18px; cursor: pointer; user-select: none;
-  font-size: .8rem; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: var(--muted);
-  list-style: none; display: flex; align-items: center; gap: 8px;
-}
-#bid-history-section summary::before {
-  content: '▶'; font-size: .65rem; transition: transform .2s;
-}
-#bid-history-section[open] summary::before { transform: rotate(90deg); }
-#bid-history-section summary::-webkit-details-marker { display: none; }
 #bid-history-list {
-  padding: 8px 12px 12px;
+  padding: 8px 12px 10px;
   display: flex; flex-direction: column; gap: 4px;
-  max-height: 220px; overflow-y: auto;
+  max-height: 200px; overflow-y: auto;
 }
 .bid-history-entry {
   display: flex; align-items: center; gap: 8px;
