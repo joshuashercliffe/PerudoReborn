@@ -800,6 +800,7 @@ function renderGame() {
 }
 
 function renderPlayersBar() {
+  showEl('game-header');
   const myId    = pid();
   const iAmHost = myId === gs.host;
   // Put viewing player first, then rest in original order
