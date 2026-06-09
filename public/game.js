@@ -1129,6 +1129,7 @@ document.getElementById('players-bar').addEventListener('click', e => {
 });
 
 document.getElementById('btn-autoliar').addEventListener('click', () => {
+  if (!confirm('Lock in Autoliar? You will automatically call liar on the next bid.')) return;
   p().socket.emit('auto_liar');
 });
 
