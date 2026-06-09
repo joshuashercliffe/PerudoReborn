@@ -62,7 +62,7 @@ function generateRoomId() {
     const word  = ROOM_WORDS[Math.floor(Math.random() * ROOM_WORDS.length)];
     const digit = ROOM_DIGITS[Math.floor(Math.random() * ROOM_DIGITS.length)];
     id = Math.random() < 0.5 ? word + digit : digit + word;
-  } while (rooms.has(id));
+  } while (rooms.has(id) || id === 'TEST');
   return id;
 }
 
