@@ -110,8 +110,8 @@ input[type="text"]::placeholder { color: var(--muted); }
   text-transform: uppercase; color: var(--accent);
   margin: -2px 0 10px; opacity: 0;
   animation:
-    reborn-in  0.55s linear 1s    forwards,
-    reborn-out 0.45s linear 3.8s  forwards;
+    reborn-in   0.55s linear 1s    forwards,
+    reborn-idle 4.5s  linear 1.55s infinite;
 }
 @keyframes reborn-in {
   0%   { opacity:0;   clip-path:inset(45% 0 45% 0); transform:translateX(6px);  color:#0ff; }
@@ -126,14 +126,15 @@ input[type="text"]::placeholder { color: var(--muted); }
   91%  { clip-path:none; color:var(--accent); }
   100% { opacity:1; clip-path:none; transform:none; color:var(--accent); }
 }
-@keyframes reborn-out {
-  0%   { opacity:1;    clip-path:none;               transform:none;             color:var(--accent); }
-  18%  { opacity:1;    clip-path:inset(15% 0 70% 0); transform:translateX(-3px); color:#0ff; }
-  36%  { opacity:.7;   clip-path:inset(50% 0 30% 0); transform:translateX(4px);  color:#f0f; }
-  54%  { opacity:.4;   clip-path:inset(75% 0 10% 0); transform:translateX(-2px); }
-  72%  { opacity:.2;   clip-path:inset(30% 0 60% 0); transform:translateX(2px); }
-  90%  { opacity:.05;  clip-path:inset(85% 0 5% 0); }
-  100% { opacity:0;    clip-path:inset(50% 0 50% 0); transform:none; }
+@keyframes reborn-idle {
+  0%, 80%, 100% { opacity:1; clip-path:none; transform:none; color:var(--accent); }
+  81%  { clip-path:inset(8% 0 80% 0);  transform:translateX(-3px); color:#0ff; opacity:1; }
+  83%  { clip-path:inset(55% 0 28% 0); transform:translateX(4px);  color:#f0f; opacity:1; }
+  85%  { clip-path:inset(0 0 84% 0);   transform:translateX(-2px); color:#0ff; opacity:1; }
+  87%  { clip-path:none;               transform:none;             color:var(--accent); opacity:1; }
+  90%  { clip-path:inset(38% 0 46% 0); transform:translateX(2px);  color:#f0f; opacity:1; }
+  93%  { clip-path:none;               color:var(--accent); opacity:1; }
+  97%  { clip-path:inset(5% 0 90% 0);  transform:translateX(-1px); color:#0ff; opacity:1; }
 }
 #join-game-row { display: flex; gap: 8px; align-items: stretch; }
 #join-game-row input { margin-bottom: 0; flex: 1; text-align: center; letter-spacing: 3px; font-weight: 700; font-size: 1.1rem; }
