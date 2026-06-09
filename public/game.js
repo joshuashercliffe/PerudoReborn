@@ -357,7 +357,11 @@ document.getElementById('btn-start').addEventListener('click', () => p().socket.
 document.getElementById('btn-leave-lobby').addEventListener('click', () => p().socket.emit('leave_lobby'));
 document.getElementById('lobby-players').addEventListener('click', e => {
   const btn = e.target.closest('.btn-kick');
-  if (btn) p().socket.emit('kick_player', { playerId: btn.dataset.id });
+  if (btn) {
+    const pl = gs?.players.find(p => p.id === btn.dataset.id);
+    if (!confirm(`Kick ${pl ? pl.name : 'this player'}?`)) return;
+    p().socket.emit('kick_player', { playerId: btn.dataset.id });
+  }
 });
 socket1.on('start_error', ({ message }) => toast(message, 'error'));
 
@@ -1111,7 +1115,12 @@ document.getElementById('btn-challenge').addEventListener('click', () => {
 
 document.getElementById('players-bar').addEventListener('click', e => {
   const kickBtn = e.target.closest('.btn-kick');
-  if (kickBtn) { p().socket.emit('kick_player', { playerId: kickBtn.dataset.id }); return; }
+  if (kickBtn) {
+    const pl = gs?.players.find(p => p.id === kickBtn.dataset.id);
+    if (!confirm(`Kick ${pl ? pl.name : 'this player'}?`)) return;
+    p().socket.emit('kick_player', { playerId: kickBtn.dataset.id });
+    return;
+  }
   if (!dualMode) return;
   const chip = e.target.closest('.player-chip[data-id]');
   if (!chip) return;
