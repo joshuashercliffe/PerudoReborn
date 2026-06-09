@@ -411,6 +411,7 @@ function switchPlayer(idx) {
     renderLobby(gs);
   } else if (gs && (gs.phase === 'playing' || gs.phase === 'reveal')) {
     renderGame();
+    if (pdice().length > 0) dealMyDice();
   }
 }
 
