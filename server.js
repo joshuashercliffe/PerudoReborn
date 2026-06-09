@@ -402,7 +402,16 @@ function processChallenge(challenger, room, roomId) {
 // Socket.io
 // ─────────────────────────────────────────
 
+function broadcastStats() {
+  let players = 0;
+  for (const room of rooms.values()) players += room.players.filter(p => p.connected).length;
+  io.emit('server_stats', { games: rooms.size, players });
+}
+
 io.on('connection', socket => {
+  // Send current stats to newly connected client
+  { let players = 0; for (const room of rooms.values()) players += room.players.filter(p => p.connected).length;
+    socket.emit('server_stats', { games: rooms.size, players }); }
 
   function getRoom() {
     const roomId = socketToRoom.get(socket.id);
@@ -418,6 +427,7 @@ io.on('connection', socket => {
     rooms.set(roomId, createRoomState());
     socket.pendingRoomId = roomId;
     socket.emit('room_created', { roomId });
+    broadcastStats();
   });
 
   // ── Join game (validate code before name entry) ───────────────────────
@@ -508,6 +518,7 @@ io.on('connection', socket => {
 
     socket.emit('joined_lobby', { ...publicState(room), sessionToken: token, roomId });
     socket.to(roomId).emit('lobby_update', publicState(room));
+    broadcastStats();
   });
 
   // ── Set game mode ─────────────────────
@@ -813,6 +824,7 @@ io.on('connection', socket => {
 
     const player = room.players[idx];
     player.connected = false;
+    broadcastStats();
 
     if (room.phase === 'lobby' || room.phase === 'over') {
       io.to(roomId).emit('lobby_update', publicState(room));
@@ -827,6 +839,7 @@ io.on('connection', socket => {
         if (wasHost && room.players.length > 0) room.host = room.players[0].id;
         io.to(roomId).emit('lobby_update', publicState(room));
         if (room.players.length === 0) rooms.delete(roomId);
+        broadcastStats();
       }, 60000);
     } else {
       io.to(roomId).emit('player_disconnected', { playerName: player.name, gameState: publicState(room) });

@@ -44,6 +44,13 @@ fetch('/version').then(r => r.json()).then(({ build, deployedAt }) => {
   document.getElementById('build-info').textContent = `build ${build} · ${date}`;
 }).catch(() => {});
 
+socket1.on('server_stats', ({ games, players }) => {
+  const statsEl = document.getElementById('server-stats');
+  if (!statsEl) return;
+  if (games === 0) { statsEl.textContent = ''; return; }
+  statsEl.textContent = `${games} active game${games !== 1 ? 's' : ''} · ${players} player${players !== 1 ? 's' : ''}`;
+});
+
 // ─── Per-player state ─────────────────────────────────────────────────────────
 // PS[0] = player 1 (primary), PS[1] = player 2 (null until dual mode activated)
 const PS = [
