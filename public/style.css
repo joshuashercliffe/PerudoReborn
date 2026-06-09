@@ -104,7 +104,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 #landing-inputs-row { display: flex; gap: 8px; }
 #landing-inputs-row input { margin-bottom: 0; }
 #landing-name-input { flex: 1; min-width: 0; }
-#room-code-input { width: 80px; flex-shrink: 0; text-align: center; letter-spacing: 3px; font-weight: 700; font-size: 1.05rem; text-transform: uppercase; }
+#room-code-input { width: 120px; flex-shrink: 0; text-align: center; letter-spacing: 3px; font-weight: 700; font-size: 1.05rem; text-transform: uppercase; }
 
 /* ── "reborn" glitch tag ─────────────────────────────────────────────── */
 .reborn-tag {
