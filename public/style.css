@@ -949,31 +949,30 @@ body.dual-mode #game-menu-wrap { top: 56px; }
   top: 0; left: 0; right: 0;
   z-index: 300;
   display: flex;
-  gap: 8px;
-  padding: 7px 16px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
+  gap: 20px;
+  padding: 5px 16px;
   justify-content: center;
+  background: rgba(10,10,28,.85);
+  border-bottom: 1px solid rgba(255,255,255,.07);
 }
 .ptoggle-btn {
-  padding: 5px 22px;
-  border-radius: 20px;
-  border: 2px solid var(--border);
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: .85rem;
-  font-weight: 700;
-  letter-spacing: .5px;
-  transition: all .15s;
+  font-size: .78rem;
+  font-weight: 600;
+  letter-spacing: .3px;
+  transition: color .15s, background .15s;
   touch-action: manipulation;
 }
 .ptoggle-btn.ptoggle-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  color: var(--text);
+  background: rgba(255,255,255,.09);
 }
-body.dual-mode .screen { padding-top: 44px; }
+body.dual-mode .screen { padding-top: 34px; }
 
 /* ── Kick button ────────────────────────────────────────────────────────── */
 .btn-kick {
