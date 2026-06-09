@@ -742,7 +742,6 @@ socket1.on('round_start', state => {
   ipChallengePending = false;
   hideEl('ip-confirm-overlay');
   bidHistory = [];
-  hideEl('reveal-overlay');
   showScreen('screen-game');
   renderGame();
   renderBidHistory();
