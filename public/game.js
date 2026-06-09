@@ -167,6 +167,7 @@ function clientValidate(state, qty, face) {
 // ─────────────────────────────────────────────────────────────────────────────
 const landingNameInput = document.getElementById('landing-name-input');
 const roomCodeInput    = document.getElementById('room-code-input');
+const btnLandingAction = document.getElementById('btn-landing-action');
 
 function getLandingName() { return landingNameInput.value.trim(); }
 
@@ -176,18 +177,24 @@ function landingError(msg) {
   showEl('landing-error');
 }
 
-document.getElementById('btn-create-game').addEventListener('click', () => {
-  if (!getLandingName()) { landingNameInput.focus(); return; }
-  hideEl('landing-error');
-  socket1.emit('create_room');
-});
-
 roomCodeInput.addEventListener('input', () => {
   roomCodeInput.value = roomCodeInput.value.toUpperCase();
+  btnLandingAction.textContent = roomCodeInput.value.trim() ? 'Join Game' : 'Create Game';
 });
-roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitJoinGame(); });
-landingNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-create-game').click(); });
-document.getElementById('btn-join-game').addEventListener('click', submitJoinGame);
+
+btnLandingAction.addEventListener('click', () => {
+  if (!getLandingName()) { landingNameInput.focus(); return; }
+  hideEl('landing-error');
+  const code = roomCodeInput.value.trim().toUpperCase();
+  if (code) {
+    socket1.emit('join_game', { roomId: code });
+  } else {
+    socket1.emit('create_room');
+  }
+});
+
+landingNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') btnLandingAction.click(); });
+roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') btnLandingAction.click(); });
 
 function submitJoinGame() {
   if (!getLandingName()) { landingNameInput.focus(); return; }
