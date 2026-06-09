@@ -40,8 +40,11 @@ function makeColoredDie(value, color, extraClass = '') {
 }
 
 fetch('/version').then(r => r.json()).then(({ build, deployedAt }) => {
-  const date = new Date(deployedAt).toISOString().slice(0, 10);
-  document.getElementById('build-info').textContent = `build ${build} · ${date}`;
+  const d    = new Date(deployedAt);
+  const date = d.toISOString().slice(0, 10);
+  const el   = document.getElementById('build-info');
+  el.textContent = `build ${build} · ${date}`;
+  el.title = d.toLocaleString();
 }).catch(() => {});
 
 socket1.on('server_stats', ({ games, players }) => {
