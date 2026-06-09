@@ -611,7 +611,13 @@ input[type="text"]::placeholder { color: var(--muted); }
   white-space: nowrap;
 }
 .mode-btn:hover:not(:disabled), .setting-pill:hover:not(:disabled) { border-color: var(--muted); color: var(--text); }
-.mode-btn.active, .setting-pill.active { border-color: var(--accent); background: rgba(233,69,96,.12); color: var(--text); }
+.mode-btn.active, .setting-pill.active {
+  border-color: var(--accent);
+  background: rgba(233,69,96,.22);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(233,69,96,.3), 0 0 8px rgba(233,69,96,.2);
+}
 .mode-btn:disabled, .setting-pill:disabled { opacity: .4; cursor: default; pointer-events: none; }
 .settings-desc { font-size: .78rem; color: var(--muted); margin: -4px 0 0 64px; }
 .settings-hint { font-size: .76rem; text-align: center; }

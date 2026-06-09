@@ -460,6 +460,34 @@ function initPlayer2(name) {
     PS[1].dice = dice;
     if (activeIdx === 1) { dealMyDice(); applyDicePrivacy(); }
   });
+
+  // In-person events that target the accused player go to socket2 directly
+  socket2.on('ip_confirm_request', ({ challengerName, qty, face }) => {
+    switchPlayer(1);
+    ipConfQty  = qty;
+    ipConfFace = face ?? 2;
+    document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar!`;
+    document.getElementById('ip-conf-qty-val').textContent  = ipConfQty;
+    const isFaceoff = face === null;
+    isFaceoff ? hideEl('ip-conf-face-group') : showEl('ip-conf-face-group');
+    if (!isFaceoff) {
+      document.querySelectorAll('#ip-conf-face-picker .face-btn').forEach(btn =>
+        btn.classList.toggle('selected', parseInt(btn.dataset.face, 10) === ipConfFace));
+    }
+    showEl('ip-confirm-overlay');
+  });
+
+  socket2.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
+    ipChallengePending = true;
+    if (activeIdx === 1) renderGame();
+    toast(`${challengerName} is calling liar on ${accusedName}'s bid…`, 'warn');
+  });
+
+  socket2.on('ip_challenge_cancelled', () => {
+    ipChallengePending = false;
+    hideEl('ip-confirm-overlay');
+    if (activeIdx === 1) renderGame();
+  });
 }
 
 function updateToggleLabels() {
