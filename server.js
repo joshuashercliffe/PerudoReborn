@@ -11,10 +11,15 @@ const server = http.createServer(app);
 const io     = new Server(server, { pingTimeout: 60000 });
 const PORT   = process.env.PORT || 3000;
 
+const { version } = require('./package.json');
+const deployedAt  = new Date().toISOString();
+
 app.use(express.static(path.join(__dirname, 'public'), {
   etag: true,
   setHeaders: (res) => { res.setHeader('Cache-Control', 'no-cache'); }
 }));
+
+app.get('/version', (_req, res) => res.json({ version, deployedAt }));
 
 // ─────────────────────────────────────────
 // Multi-room state
