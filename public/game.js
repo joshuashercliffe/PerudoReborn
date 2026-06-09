@@ -534,19 +534,31 @@ function applyDicePrivacy() {
     return;
   }
   const hint = document.getElementById('dice-reveal-hint');
-  hint.textContent = diceRevealed
-    ? (isTouch() ? 'Touch here to hide your dice' : 'Click here to hide your dice')
-    : (isTouch() ? 'Touch here to reveal your dice' : 'Click here to reveal your dice');
+  hint.textContent = 'Hold to reveal your dice';
   cover.classList.remove('hidden');
   diceRevealed ? diceEl.classList.remove('dice-obscured') : diceEl.classList.add('dice-obscured');
 }
 
-document.getElementById('dice-privacy-cover').addEventListener('click', () => {
-  const effectiveHide = hideDice || (gs?.isInPerson && gs?.phase === 'playing');
-  if (!effectiveHide) return;
-  diceRevealed = !diceRevealed;
-  applyDicePrivacy();
-});
+(function initDicePrivacyCover() {
+  const cover = document.getElementById('dice-privacy-cover');
+
+  cover.addEventListener('pointerdown', e => {
+    const effectiveHide = hideDice || (gs?.isInPerson && gs?.phase === 'playing');
+    if (!effectiveHide) return;
+    e.preventDefault();
+    diceRevealed = true;
+    applyDicePrivacy();
+  });
+
+  const endReveal = () => {
+    if (!diceRevealed) return;
+    diceRevealed = false;
+    applyDicePrivacy();
+  };
+
+  document.addEventListener('pointerup',     endReveal);
+  document.addEventListener('pointercancel', endReveal);
+})();
 
 function updateBidHistoryVisibility() {
   showBidHistory ? showEl('bid-history-inline') : hideEl('bid-history-inline');
