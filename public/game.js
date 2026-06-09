@@ -661,9 +661,18 @@ function ipFacePicker(containerId, getVal, setVal) {
   // Call Liar button: open the liar modal
   document.getElementById('btn-ip-liar').addEventListener('click', () => {
     if (!gs || ipChallengePending) return;
-    ipLiarQty     = 1;
-    ipLiarFace    = 2;
-    ipLiarAccused = null;
+
+    // Default qty: 1 above quick maths
+    const total = gs.players.reduce((s, pl) => s + pl.diceCount, 0);
+    ipLiarQty = Math.floor(total / 3) + 1;
+    ipLiarFace = 2;
+
+    // Default accused: player immediately before caller in turn order
+    const activePlayers = gs.players.filter(pl => pl.diceCount > 0);
+    const callerIdx = activePlayers.findIndex(pl => pl.id === pid());
+    const prevPlayer = activePlayers[(callerIdx - 1 + activePlayers.length) % activePlayers.length];
+    ipLiarAccused = (prevPlayer && prevPlayer.id !== pid()) ? prevPlayer.id : null;
+
     document.getElementById('ip-qty-val').textContent = ipLiarQty;
     gs.isFaceoff ? hideEl('ip-face-group') : showEl('ip-face-group');
     document.querySelectorAll('#ip-face-picker .face-btn').forEach(btn =>
@@ -672,7 +681,9 @@ function ipFacePicker(containerId, getVal, setVal) {
       .filter(pl => pl.id !== pid())
       .map(pl => `<button class="ip-accused-btn" data-id="${esc(pl.id)}">${esc(pl.name)}</button>`)
       .join('');
-    document.getElementById('btn-ip-submit').disabled = true;
+    document.querySelectorAll('#ip-accused-list [data-id]').forEach(btn =>
+      btn.classList.toggle('selected', btn.dataset.id === ipLiarAccused));
+    document.getElementById('btn-ip-submit').disabled = !ipLiarAccused;
     showEl('ip-liar-overlay');
   });
 })();

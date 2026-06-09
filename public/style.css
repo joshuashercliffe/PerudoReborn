@@ -385,7 +385,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 #bid-controls { display: flex; gap: 24px; justify-content: center; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; }
 .control-group { text-align: center; }
 .control-group label { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px; }
-.qty-control { display: flex; align-items: center; gap: 10px; }
+.qty-control { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .btn-stepper {
   width: 36px; height: 36px; background: rgba(255,255,255,.08);
   border: 1px solid var(--border); border-radius: 8px; color: var(--text);
@@ -395,6 +395,10 @@ input[type="text"]::placeholder { color: var(--muted); }
 }
 .btn-stepper:hover { background: rgba(255,255,255,.18); }
 #qty-val { font-size: 1.9rem; font-weight: 900; min-width: 44px; text-align: center; }
+#ip-qty-val { font-size: 1.9rem; font-weight: 900; min-width: 44px; text-align: center; }
+#ip-face-picker { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center; }
+#ip-face-picker .face-btn { width: 44px; height: 44px; }
+#ip-face-picker .face-btn .die { width: 30px; height: 30px; padding: 4px; }
 
 #face-picker { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .face-btn {
