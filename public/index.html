@@ -154,15 +154,13 @@
       <h1>Perudo</h1>
       <span class="reborn-tag">reborn</span>
       <p class="tagline">LIAR'S DICE</p>
-      <input id="landing-name-input" type="text" placeholder="Your name…" maxlength="20"
-             autocomplete="off" spellcheck="false">
-      <button id="btn-create-game" class="btn btn-primary">Create Game</button>
-      <div class="landing-divider">— or —</div>
-      <div id="join-game-row">
-        <input id="room-code-input" type="text" placeholder="Game code" maxlength="4"
-               autocomplete="off" spellcheck="false" style="text-transform:uppercase">
-        <button id="btn-join-game" class="btn btn-secondary">Join</button>
+      <div id="landing-inputs-row">
+        <input id="landing-name-input" type="text" placeholder="Your name…" maxlength="20"
+               autocomplete="off" spellcheck="false">
+        <input id="room-code-input" type="text" placeholder="Code" maxlength="4"
+               autocomplete="off" spellcheck="false">
       </div>
+      <button id="btn-landing-action" class="btn btn-primary">Create Game</button>
       <p id="landing-error" class="error-msg hidden"></p>
       <p id="build-info" class="muted-msg" style="margin-top:18px;font-size:.72rem;letter-spacing:.5px"></p>
       <p id="server-stats" class="muted-msg" style="font-size:.72rem;letter-spacing:.5px;margin-top:4px"></p>

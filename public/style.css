@@ -101,7 +101,10 @@ input[type="text"]::placeholder { color: var(--muted); }
 .hidden { display: none !important; }
 
 /* ── Landing Screen ──────────────────────────────────────────────────── */
-.landing-divider { color: var(--muted); font-size: .8rem; margin: 14px 0; }
+#landing-inputs-row { display: flex; gap: 8px; }
+#landing-inputs-row input { margin-bottom: 0; }
+#landing-name-input { flex: 1; min-width: 0; }
+#room-code-input { width: 80px; flex-shrink: 0; text-align: center; letter-spacing: 3px; font-weight: 700; font-size: 1.05rem; text-transform: uppercase; }
 
 /* ── "reborn" glitch tag ─────────────────────────────────────────────── */
 .reborn-tag {
@@ -136,9 +139,6 @@ input[type="text"]::placeholder { color: var(--muted); }
   93%  { clip-path:none;               color:var(--accent); opacity:1; }
   97%  { clip-path:inset(5% 0 90% 0);  transform:translateX(-1px); color:#0ff; opacity:1; }
 }
-#join-game-row { display: flex; gap: 8px; align-items: stretch; }
-#join-game-row input { margin-bottom: 0; flex: 1; text-align: center; letter-spacing: 3px; font-weight: 700; font-size: 1.1rem; }
-#join-game-row .btn { width: auto; padding: 13px 20px; margin-top: 0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
 /* ── Lobby Screen ────────────────────────────────────────────────────── */
 #screen-lobby .card { padding: 28px 28px; }
