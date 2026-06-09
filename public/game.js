@@ -59,6 +59,8 @@ let selQty         = 1;
 let selFace        = 2;
 let bidHistory     = [];
 let showBidHistory = localStorage.getItem('showBidHistory') === 'true';
+let hideDice       = localStorage.getItem('hideDice') === 'true';
+let diceRevealed   = false;
 let dealGeneration = 0;
 let currentRoomId  = null;
 
@@ -453,7 +455,7 @@ function initPlayer2(name) {
   // handled by socket1's listeners which already update both PS[0] and PS[1]
   socket2.on('your_dice', ({ dice }) => {
     PS[1].dice = dice;
-    if (activeIdx === 1) dealMyDice();
+    if (activeIdx === 1) { dealMyDice(); applyDicePrivacy(); }
   });
 }
 
@@ -475,6 +477,7 @@ function switchPlayer(idx) {
   } else if (gs && (gs.phase === 'playing' || gs.phase === 'reveal')) {
     renderGame();
     if (pdice().length > 0) dealMyDice();
+    applyDicePrivacy();
   }
 }
 
@@ -485,11 +488,13 @@ document.getElementById('toggle-p1').addEventListener('click', () => switchPlaye
 // Game menu
 // ─────────────────────────────────────────────────────────────────────────────
 (function initGameMenu() {
-  const menuBtn   = document.getElementById('game-menu-btn');
-  const menuPanel = document.getElementById('game-menu-panel');
-  const histCheck = document.getElementById('toggle-bid-history');
+  const menuBtn    = document.getElementById('game-menu-btn');
+  const menuPanel  = document.getElementById('game-menu-panel');
+  const histCheck  = document.getElementById('toggle-bid-history');
+  const diceCheck  = document.getElementById('toggle-hide-dice');
 
   histCheck.checked = showBidHistory;
+  diceCheck.checked = hideDice;
 
   menuBtn.addEventListener('click', e => {
     e.stopPropagation();
@@ -505,7 +510,38 @@ document.getElementById('toggle-p1').addEventListener('click', () => switchPlaye
     updateBidHistoryVisibility();
     if (showBidHistory) renderBidHistory();
   });
+
+  diceCheck.addEventListener('change', () => {
+    hideDice = diceCheck.checked;
+    localStorage.setItem('hideDice', hideDice);
+    if (!hideDice) diceRevealed = false;
+    applyDicePrivacy();
+  });
 })();
+
+const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
+
+function applyDicePrivacy() {
+  const cover = document.getElementById('dice-privacy-cover');
+  const diceEl = document.getElementById('my-dice');
+  if (!hideDice) {
+    cover.classList.add('hidden');
+    diceEl.classList.remove('dice-obscured');
+    return;
+  }
+  const hint = document.getElementById('dice-reveal-hint');
+  hint.textContent = diceRevealed
+    ? (isTouch() ? 'Touch here to hide your dice' : 'Click here to hide your dice')
+    : (isTouch() ? 'Touch here to reveal your dice' : 'Click here to reveal your dice');
+  cover.classList.remove('hidden');
+  diceRevealed ? diceEl.classList.remove('dice-obscured') : diceEl.classList.add('dice-obscured');
+}
+
+document.getElementById('dice-privacy-cover').addEventListener('click', () => {
+  if (!hideDice) return;
+  diceRevealed = !diceRevealed;
+  applyDicePrivacy();
+});
 
 function updateBidHistoryVisibility() {
   showBidHistory ? showEl('bid-history-inline') : hideEl('bid-history-inline');
@@ -539,6 +575,7 @@ socket1.on('round_start', state => {
     PS[1].dice     = [];
     PS[1].autoLiar = (state.autoLiarPlayerId === PS[1].id);
   }
+  diceRevealed = false;
   bidHistory = [];
   hideEl('reveal-overlay');
   showScreen('screen-game');
@@ -580,6 +617,7 @@ function showFaceoffAnnounce() {
 socket1.on('your_dice', ({ dice }) => {
   PS[0].dice = dice;
   if (activeIdx === 0) dealMyDice();
+  applyDicePrivacy();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

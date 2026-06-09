@@ -233,6 +233,10 @@
         <input type="checkbox" id="toggle-bid-history">
         <span>Show bid history</span>
       </label>
+      <label class="menu-toggle-row">
+        <input type="checkbox" id="toggle-hide-dice">
+        <span>Hide my dice</span>
+      </label>
     </div>
   </div>
 
@@ -300,6 +304,9 @@
       <div id="my-dice-section">
         <div class="section-label">Your Dice
           <span id="total-dice-note" class="muted-msg"></span>
+        </div>
+        <div id="dice-privacy-cover" class="hidden">
+          <span id="dice-reveal-hint"></span>
         </div>
         <div id="my-dice"></div>
       </div>

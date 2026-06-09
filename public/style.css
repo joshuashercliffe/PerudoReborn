@@ -222,6 +222,15 @@ input[type="text"]::placeholder { color: var(--muted); }
 #my-dice-section { text-align: center; }
 .section-label { font-size: .72rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; }
 #my-dice { display: flex; gap: 17px; justify-content: center; flex-wrap: wrap; }
+#dice-privacy-cover {
+  cursor: pointer; user-select: none;
+  background: rgba(255,255,255,.04); border: 1px dashed rgba(255,255,255,.15);
+  border-radius: var(--radius); padding: 16px 20px; margin-bottom: 10px;
+  color: var(--muted); font-size: .88rem; text-align: center;
+  transition: background .15s, border-color .15s;
+}
+#dice-privacy-cover:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.28); }
+#my-dice.dice-obscured { filter: blur(12px); pointer-events: none; user-select: none; }
 
 /* ── CSS Dice ────────────────────────────────────────────────────────── */
 .die {
