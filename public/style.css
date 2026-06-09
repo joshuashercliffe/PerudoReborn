@@ -193,7 +193,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   padding: 6px 8px; align-items: stretch;
 }
 .player-chip {
-  flex: 1 1 calc(16.5% - 5px);
+  flex: 0 0 calc((100% - 25px) / 6);
   border: 2px solid var(--border); border-radius: 8px;
   padding: 4px 5px; text-align: center; min-width: 0;
   transition: border-color .2s, box-shadow .2s;
@@ -767,16 +767,16 @@ body.dual-mode .player-chip { cursor: pointer; }
   100% { transform: translateY(-115vh) translateX(0);                         opacity: 0; }
 }
 
-/* ── End Game button ─────────────────────────────────────────────────── */
-.btn-end-game {
-  position: fixed; bottom: 14px; right: 14px; z-index: 20;
-  background: rgba(239,68,68,.1); color: rgba(239,68,68,.45);
-  border: 1px solid rgba(239,68,68,.2); border-radius: 8px;
-  font-size: .72rem; padding: 5px 12px; width: auto; margin: 0;
+/* ── Leave Game (in menu) ────────────────────────────────────────────── */
+.menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+.menu-leave-btn {
+  width: 100%; text-align: left; padding: 8px 12px;
+  background: none; border: none; border-radius: 6px;
+  font-size: .85rem; font-weight: 600; color: rgba(239,68,68,.6);
   cursor: pointer; touch-action: manipulation;
-  transition: background .2s, color .2s, border-color .2s;
+  transition: background .15s, color .15s;
 }
-.btn-end-game:hover { background: rgba(239,68,68,.22); color: var(--danger); border-color: rgba(239,68,68,.5); }
+.menu-leave-btn:hover { background: rgba(239,68,68,.12); color: var(--danger); }
 
 /* ── Rage Quit Modal ─────────────────────────────────────────────────── */
 #ragequit-overlay {

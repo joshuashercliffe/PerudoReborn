@@ -888,7 +888,7 @@ function renderPlayersBar() {
     const active   = pl.id === gs.currentPlayerId;
     const me       = pl.id === myId;
     const canKick  = iAmHost && !pl.connected && !me;
-    const dice     = '🎲'.repeat(pl.diceCount) || '—';
+    const dice     = pl.diceCount ? `${pl.diceCount}×🎲` : '—';
     return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!pl.connected ? ' disconnected' : ''}" data-id="${esc(pl.id)}">
       <div class="chip-name" title="${esc(pl.name)}">${esc(pl.name)}${me ? ' ★' : ''}</div>
       <div class="chip-dice">${dice}</div>
