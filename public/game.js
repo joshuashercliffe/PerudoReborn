@@ -802,8 +802,11 @@ function renderPlayersBar() {
   showEl('game-header');
   const myId    = pid();
   const iAmHost = myId === gs.host;
-  // Put viewing player first, then rest in original order
-  const sorted  = [...gs.players].sort((a, b) => a.id === myId ? -1 : b.id === myId ? 1 : 0);
+  // Rotate turn order so viewing player is leftmost
+  const myIdx  = gs.players.findIndex(p => p.id === myId);
+  const sorted = myIdx < 1
+    ? gs.players
+    : [...gs.players.slice(myIdx), ...gs.players.slice(0, myIdx)];
   document.getElementById('players-bar').innerHTML = sorted.map(pl => {
     const active   = pl.id === gs.currentPlayerId;
     const me       = pl.id === myId;
