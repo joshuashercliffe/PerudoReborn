@@ -29,7 +29,7 @@ const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateRoomId() {
   let id;
   do {
-    id = Array.from({ length: 6 }, () =>
+    id = Array.from({ length: 4 }, () =>
       ROOM_ID_CHARS[Math.floor(Math.random() * ROOM_ID_CHARS.length)]
     ).join('');
   } while (rooms.has(id));
