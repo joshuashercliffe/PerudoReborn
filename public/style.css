@@ -382,7 +382,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   background: rgba(245,166,35,.1); border: 1px solid rgba(245,166,35,.3);
   border-radius: 8px; padding: 8px;
 }
-#bid-controls { display: flex; gap: 24px; justify-content: center; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; }
+#bid-controls { display: flex; gap: 24px; justify-content: center; align-items: center; margin-bottom: 12px; flex-wrap: nowrap; }
 .control-group { text-align: center; }
 .control-group label { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px; }
 .qty-control { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -400,7 +400,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 #ip-face-picker .face-btn { width: 44px; height: 44px; }
 #ip-face-picker .face-btn .die { width: 30px; height: 30px; padding: 4px; }
 
-#face-picker { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#face-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .face-btn {
   width: 52px; height: 52px;
   background: rgba(255,255,255,.05); border: 2px solid var(--border);
