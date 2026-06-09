@@ -191,22 +191,23 @@
       <p class="lobby-hint">Share the code to invite friends!</p>
       <div id="lobby-players"></div>
 
-      <div id="mode-selector">
-        <div class="section-label" style="margin-bottom:8px">Game Mode</div>
-        <div id="mode-btns">
-          <button class="mode-btn" data-mode="standard">⚖️ Standard</button>
-          <button class="mode-btn" data-mode="reverse">🔄 Reverse</button>
+      <div id="lobby-settings">
+        <div class="settings-row">
+          <span class="settings-label">Mode</span>
+          <div id="mode-btns">
+            <button class="mode-btn" data-mode="standard">⚖️ Standard</button>
+            <button class="mode-btn" data-mode="reverse">🔄 Reverse</button>
+          </div>
         </div>
-        <p id="mode-desc" class="muted-msg" style="text-align:center;margin-top:8px;font-size:.8rem"></p>
-      </div>
-
-      <div id="variable-section">
-        <div class="section-label" style="margin-bottom:8px">Options</div>
-        <button id="btn-variable" class="option-toggle-btn" data-active="false">📊 Variable Mode</button>
-        <p id="variable-desc" class="muted-msg" style="text-align:center;margin-top:6px;font-size:.8rem">Lose/gain dice equal to how wrong the bid was</p>
-        <button id="btn-inperson" class="option-toggle-btn" data-active="false" style="margin-top:8px">🤝 In-person Mode</button>
-        <p id="inperson-desc" class="muted-msg" style="text-align:center;margin-top:6px;font-size:.8rem">Coming soon</p>
-        <p id="host-only-hint" class="muted-msg hidden" style="text-align:center;margin-top:8px;font-size:.78rem">Only the host can change game settings</p>
+        <p id="mode-desc" class="muted-msg settings-desc"></p>
+        <div class="settings-row">
+          <span class="settings-label">Options</span>
+          <div class="settings-pills">
+            <button id="btn-variable" class="setting-pill" data-active="false" title="Lose/gain dice equal to how wrong the bid was">📊 Variable</button>
+            <button id="btn-inperson" class="setting-pill" data-active="false" title="Bidding done in person">🤝 In-person</button>
+          </div>
+        </div>
+        <p id="host-only-hint" class="muted-msg hidden settings-hint">Only the host can change settings</p>
       </div>
 
       <!-- P2 setup — shown automatically when Davetest joins -->
