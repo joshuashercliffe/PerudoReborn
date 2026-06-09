@@ -396,7 +396,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 .btn-stepper:hover { background: rgba(255,255,255,.18); }
 #qty-val { font-size: 1.9rem; font-weight: 900; min-width: 44px; text-align: center; }
 #ip-qty-val { font-size: 1.9rem; font-weight: 900; min-width: 44px; text-align: center; }
-#ip-face-picker { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center; }
+#ip-face-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 #ip-face-picker .face-btn { width: 44px; height: 44px; }
 #ip-face-picker .face-btn .die { width: 30px; height: 30px; padding: 4px; }
 
@@ -788,7 +788,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 }
 .ip-panel-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 6px; }
 .ip-subtitle { font-size: .88rem; color: var(--muted); margin-bottom: 18px; }
-.ip-bid-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+.ip-bid-row { display: flex; gap: 24px; flex-wrap: nowrap; justify-content: center; align-items: center; }
 .ip-panel-btns { display: flex; gap: 10px; margin-top: 22px; }
 .ip-panel-btns .btn { flex: 1; margin-top: 0; }
 #ip-accused-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
