@@ -8,9 +8,6 @@
 </head>
 <body>
 
-  <!-- Player toggle — visible only in dual-player mode -->
-  <div id="player-toggle" class="hidden"></div>
-
   <!-- Elimination overlay -->
   <div id="elimination-overlay" class="hidden">
     <div id="elimination-name"></div>
@@ -212,27 +209,27 @@
     </div>
   </div>
 
-  <!-- Game settings menu — shown only during game screen -->
-  <div id="game-menu-wrap" class="hidden">
-    <button id="game-menu-btn" class="game-menu-btn" title="Settings">⋮</button>
-    <div id="game-menu-panel" class="hidden">
-      <label class="menu-toggle-row">
-        <input type="checkbox" id="toggle-bid-history">
-        <span>Show bid history</span>
-      </label>
-      <label class="menu-toggle-row">
-        <input type="checkbox" id="toggle-hide-dice">
-        <span>Hide my dice</span>
-      </label>
-    </div>
-  </div>
-
   <!-- ═══════════════════════════════════════ -->
   <!-- SCREEN: Game                            -->
   <!-- ═══════════════════════════════════════ -->
   <div id="screen-game" class="screen">
 
-    <div id="players-bar"></div>
+    <div id="game-header">
+      <div id="players-bar"></div>
+      <div id="game-menu-wrap">
+        <button id="game-menu-btn" class="game-menu-btn" title="Settings">⋮</button>
+        <div id="game-menu-panel" class="hidden">
+          <label class="menu-toggle-row">
+            <input type="checkbox" id="toggle-bid-history">
+            <span>Show bid history</span>
+          </label>
+          <label class="menu-toggle-row">
+            <input type="checkbox" id="toggle-hide-dice">
+            <span>Hide my dice</span>
+          </label>
+        </div>
+      </div>
+    </div>
 
     <div id="game-center">
 

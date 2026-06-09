@@ -183,20 +183,29 @@ input[type="text"]::placeholder { color: var(--muted); }
 }
 #start-hint { margin-top: 10px; }
 
-/* ── Game Screen: Players bar ────────────────────────────────────────── */
-#players-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+/* ── Game Screen: Header + Players bar ───────────────────────────────── */
+#game-header {
+  display: flex; align-items: stretch;
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+}
+#players-bar {
+  display: flex; flex: 1; gap: 6px; overflow-x: auto;
+  padding: 8px 10px; align-items: center;
+  scrollbar-width: none;
+}
+#players-bar::-webkit-scrollbar { display: none; }
 .player-chip {
-  background: var(--bg-card); border: 2px solid var(--border);
-  border-radius: 12px; padding: 8px 14px; text-align: center; min-width: 90px;
+  border: 2px solid var(--border); border-radius: 10px;
+  padding: 6px 10px; text-align: center; flex-shrink: 0;
   transition: border-color .2s, box-shadow .2s;
 }
-.player-chip.is-active { border-color: var(--accent); box-shadow: 0 0 16px var(--accent-glow); }
+.player-chip.is-active { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); background: rgba(233,69,96,.07); }
 .player-chip.is-me { border-color: var(--gold); }
 .player-chip.is-active.is-me { border-color: var(--accent); }
 .player-chip.disconnected { opacity: .45; }
-.chip-name { font-size: .82rem; font-weight: 700; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
-.chip-dice { font-size: .75rem; color: var(--muted); }
-.chip-turn { font-size: .65rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-top: 3px; text-transform: uppercase; }
+body.dual-mode .player-chip { cursor: pointer; }
+.chip-name { font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+.chip-dice { font-size: .72rem; margin-top: 3px; letter-spacing: 1px; }
 
 /* ── Game Center ─────────────────────────────────────────────────────── */
 #game-center { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: 1; }
@@ -803,9 +812,10 @@ input[type="text"]::placeholder { color: var(--muted); }
 
 /* ── Game Menu ───────────────────────────────────────────────────────── */
 #game-menu-wrap {
-  position: fixed; top: 12px; right: 16px; z-index: 150;
+  display: flex; align-items: center;
+  padding: 0 12px; border-left: 1px solid var(--border);
+  flex-shrink: 0; position: relative;
 }
-body.dual-mode #game-menu-wrap { top: 56px; }
 .game-menu-btn {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 8px; color: var(--muted);
@@ -943,36 +953,6 @@ body.dual-mode #game-menu-wrap { top: 56px; }
 /* ── Hide reverse mode (not yet enabled) ────────────────────────────────── */
 #mode-selector { display: none !important; }
 
-/* ── Player toggle (dual-player mode) ──────────────────────────────────── */
-#player-toggle {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 300;
-  display: flex;
-  gap: 20px;
-  padding: 5px 16px;
-  justify-content: center;
-  background: rgba(10,10,28,.85);
-  border-bottom: 1px solid rgba(255,255,255,.07);
-}
-.ptoggle-btn {
-  padding: 2px 6px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: .78rem;
-  font-weight: 600;
-  letter-spacing: .3px;
-  transition: color .15s, background .15s;
-  touch-action: manipulation;
-}
-.ptoggle-btn.ptoggle-active {
-  color: var(--text);
-  background: rgba(255,255,255,.09);
-}
-body.dual-mode .screen { padding-top: 34px; }
 
 /* ── Kick button ────────────────────────────────────────────────────────── */
 .btn-kick {
