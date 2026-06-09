@@ -1243,7 +1243,8 @@ socket1.on('reveal_resolved', () => {
 
 document.getElementById('btn-next-round').addEventListener('click', () => {
   hideEl('reveal-overlay');
-  p().socket.emit('next_round');
+  // Send for every local socket so dual-player (Davetest) mode satisfies allReady
+  PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
 });
 
 function showReveal(r) {
