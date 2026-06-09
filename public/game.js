@@ -52,10 +52,9 @@ socket1.on('server_stats', ({ games, players }) => {
 });
 
 // ─── Per-player state ─────────────────────────────────────────────────────────
-// PS[0] = player 1 (primary), PS[1] = player 2 (null until dual mode activated)
+// PS[0] = primary player; extra test players are pushed as PS[1], PS[2], …
 const PS = [
   { socket: socket1, id: null, name: null, dice: [], autoLiar: false },
-  null,
 ];
 let activeIdx     = 0;   // which player the UI is currently controlling
 let dualMode      = false;
@@ -428,79 +427,86 @@ lobbyList.addEventListener('dragend', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Dual-player: P2 setup + toggle
+// Multi-player test mode: add players + toggle
 // ─────────────────────────────────────────────────────────────────────────────
 document.getElementById('btn-add-p2').addEventListener('click', () => {
-  const name = document.getElementById('p2-name-input').value.trim() || 'Player 2';
-  initPlayer2(name);
-  hideEl('p2-setup');
+  const input = document.getElementById('p2-name-input');
+  const name  = input.value.trim() || `Player ${PS.length + 1}`;
+  initTestPlayer(name);
+  input.value = '';
+  input.placeholder = `Player ${PS.length + 1} name`;
+  input.focus();
 });
 document.getElementById('p2-name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-add-p2').click();
 });
 
-function initPlayer2(name) {
-  const socket2 = io();
-  PS[1] = { socket: socket2, id: null, name: null, dice: [], autoLiar: false };
-  dualMode = true;
-  document.body.classList.add('dual-mode');
-  showEl('player-toggle');
+// Event delegation for dynamically generated toggle buttons
+document.getElementById('player-toggle').addEventListener('click', e => {
+  const btn = e.target.closest('[data-idx]');
+  if (btn) switchPlayer(parseInt(btn.dataset.idx, 10));
+});
+
+function initTestPlayer(name) {
+  const idx    = PS.length;
+  const socket = io();
+  PS.push({ socket, id: null, name: null, dice: [], autoLiar: false });
+
+  if (!dualMode) {
+    dualMode = true;
+    document.body.classList.add('dual-mode');
+    showEl('player-toggle');
+  }
   updateToggleLabels();
 
-  socket2.on('connect', () => {
-    PS[1].id = socket2.id;
-    socket2.emit('join_game', { roomId: currentRoomId });
+  socket.on('connect', () => {
+    PS[idx].id = socket.id;
+    socket.emit('join_game', { roomId: currentRoomId });
   });
 
-  socket2.on('join_game_ok', () => {
-    socket2.emit('set_name', { name });
+  socket.on('join_game_ok', () => {
+    socket.emit('set_name', { name });
   });
 
-  socket2.on('join_error', ({ message }) => {
-    toast(`P2: ${message}`, 'error');
+  socket.on('join_error', ({ message }) => {
+    toast(`P${idx + 1}: ${message}`, 'error');
   });
 
-  socket2.on('joined_lobby', state => {
-    PS[1].id   = socket2.id;
-    PS[1].name = state.players.find(pl => pl.id === socket2.id)?.name ?? name;
+  socket.on('joined_lobby', state => {
+    PS[idx].id   = socket.id;
+    PS[idx].name = state.players.find(pl => pl.id === socket.id)?.name ?? name;
     gs = state;
     updateToggleLabels();
     renderLobby(state);
   });
 
-  // socket2 receives `your_dice` individually; all other game events are
-  // handled by socket1's listeners which already update both PS[0] and PS[1]
-  socket2.on('your_dice', ({ dice }) => {
-    PS[1].dice = dice;
-    if (activeIdx === 1) { dealMyDice(); applyDicePrivacy(); }
+  socket.on('your_dice', ({ dice }) => {
+    PS[idx].dice = dice;
+    if (activeIdx === idx) { dealMyDice(); applyDicePrivacy(); }
   });
 
-  // In-person events that target the accused player go to socket2 directly
-  socket2.on('ip_confirm_request', data => showIPConfirmOverlay(data, socket2));
+  socket.on('ip_confirm_request', data => showIPConfirmOverlay(data, socket));
 
-  socket2.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
+  socket.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
     ipChallengePending = true;
-    if (activeIdx === 1) renderGame();
+    if (activeIdx === idx) renderGame();
     toast(`${challengerName} is calling liar on ${accusedName}'s bid…`, 'warn');
   });
 
-  socket2.on('ip_challenge_cancelled', () => {
+  socket.on('ip_challenge_cancelled', () => {
     ipChallengePending = false;
     hideEl('ip-confirm-overlay');
-    if (activeIdx === 1) renderGame();
+    if (activeIdx === idx) renderGame();
   });
 }
 
 function updateToggleLabels() {
-  [0, 1].forEach(i => {
-    const btn = document.getElementById(`toggle-p${i}`);
-    const ps  = PS[i];
-    if (!ps) { btn.textContent = '—'; btn.classList.remove('ptoggle-active'); return; }
-    const player = gs?.players?.find(p => p.id === ps.id);
-    const dice   = player ? ' ' + '🎲'.repeat(player.diceCount) : '';
-    btn.textContent = (ps.name ?? '—') + dice;
-    btn.classList.toggle('ptoggle-active', activeIdx === i);
-  });
+  document.getElementById('player-toggle').innerHTML = PS.map((ps, i) => {
+    const player  = gs?.players?.find(p => p.id === ps?.id);
+    const dice    = player ? ' ' + '🎲'.repeat(player.diceCount) : '';
+    const active  = i === activeIdx ? ' ptoggle-active' : '';
+    return `<button class="ptoggle-btn${active}" data-idx="${i}">${(ps?.name ?? '—') + dice}</button>`;
+  }).join('');
 }
 
 function switchPlayer(idx) {
@@ -518,8 +524,6 @@ function switchPlayer(idx) {
   }
 }
 
-document.getElementById('toggle-p0').addEventListener('click', () => switchPlayer(0));
-document.getElementById('toggle-p1').addEventListener('click', () => switchPlayer(1));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Game menu
@@ -742,10 +746,7 @@ socket1.on('round_start', state => {
   gs = state;
   PS[0].dice     = [];
   PS[0].autoLiar = (state.autoLiarPlayerId === PS[0].id);
-  if (PS[1]) {
-    PS[1].dice     = [];
-    PS[1].autoLiar = (state.autoLiarPlayerId === PS[1].id);
-  }
+  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.autoLiar = (state.autoLiarPlayerId === ps.id); } });
   diceRevealed = false;
   ipChallengePending = false;
   hideEl('ip-confirm-overlay');
@@ -1185,7 +1186,7 @@ socket1.on('bid_made', ({ bid, bidderName, gameState: state }) => {
   const wasFirstBid = gs.firstBidOfRound;
   gs = state;
   PS[0].autoLiar = (state.autoLiarPlayerId === PS[0].id);
-  if (PS[1]) PS[1].autoLiar = (state.autoLiarPlayerId === PS[1].id);
+  PS.slice(1).forEach(ps => { if (ps) ps.autoLiar = (state.autoLiarPlayerId === ps.id); });
   bidHistory.push({ type: 'bid', name: bidderName, qty: bid.quantity, face: bid.face });
   renderGame();
   renderBidHistory();
@@ -1390,10 +1391,7 @@ socket1.on('player_eliminated', ({ playerId, playerName, reason }) => {
     PS[0].dice = [];
     if (activeIdx === 0) renderReactionButtons();
   }
-  if (PS[1] && playerId === PS[1].id) {
-    PS[1].dice = [];
-    if (activeIdx === 1) renderReactionButtons();
-  }
+  PS.slice(1).forEach((ps, i) => { if (ps?.id === playerId) { ps.dice = []; if (activeIdx === i + 1) renderReactionButtons(); } });
   if (reason === 'disconnect') {
     const disconnectQuips = [
       `${playerName} lagged out of reality`,
@@ -1450,10 +1448,7 @@ socket1.on('auto_liar_update', ({ playerId, playerName }) => {
     PS[0].autoLiar = true;
     if (activeIdx === 0) renderAutoLiarBtn();
   }
-  if (PS[1] && playerId === PS[1].id) {
-    PS[1].autoLiar = true;
-    if (activeIdx === 1) renderAutoLiarBtn();
-  }
+  PS.slice(1).forEach((ps, i) => { if (ps?.id === playerId) { ps.autoLiar = true; if (activeIdx === i + 1) renderAutoLiarBtn(); } });
   showAutoLiarOverlay(playerName);
 });
 
@@ -1474,7 +1469,7 @@ socket1.on('game_over', ({ winner, reason, quitterName }) => {
   hideEl('reveal-overlay');
   hideEl('ragequit-overlay');
   PS[0].autoLiar = false;
-  if (PS[1]) PS[1].autoLiar = false;
+  PS.slice(1).forEach(ps => { if (ps) ps.autoLiar = false; });
   const titleEl = document.getElementById('winner-title');
   const nameEl  = document.getElementById('winner-name');
 
@@ -1514,8 +1509,8 @@ socket1.on('game_reset', () => {
   currentRoomId  = null;
 
   if (dualMode) {
-    PS[1]?.socket.disconnect();
-    PS[1]  = null;
+    PS.slice(1).forEach(ps => ps?.socket.disconnect());
+    PS.length  = 1;
     dualMode   = false;
     activeIdx  = 0;
     document.body.classList.remove('dual-mode');
