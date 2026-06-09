@@ -48,6 +48,7 @@ function createRoomState() {
     isVariable: false,
     isInPerson: false,
     nextRoundReady: [],
+    pendingIPChallenge: null,
     players: [],
     host: null,
     currentPlayerIndex: 0,
@@ -228,6 +229,7 @@ function startRound(room, roomId) {
   room.lastBidderIndex = -1;
   room.revealResolved = false;
   room.nextRoundReady = [];
+  room.pendingIPChallenge = null;
 
   const isFaceoffRound = room.players.length === 2 && room.players.every(p => p.diceCount === 1);
   if (isFaceoffRound) {
@@ -656,6 +658,53 @@ io.on('connection', socket => {
     const connectedIds = room.players.filter(p => p.connected).map(p => p.id);
     const allReady = connectedIds.every(id => room.nextRoundReady.includes(id));
     if (allReady) startRound(room, roomId);
+  });
+
+  // ── In-person: liar call ──────────────
+  socket.on('ip_challenge', ({ qty, face, accusedId }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (!room.isInPerson || room.phase !== 'playing') return;
+    if (room.pendingIPChallenge) return;
+    const challenger = room.players.find(p => p.id === socket.id);
+    if (!challenger) return;
+    const accused = room.players.find(p => p.id === accusedId);
+    if (!accused || accused.id === challenger.id) return;
+    const q = parseInt(qty, 10);
+    const f = room.isFaceoff ? null : parseInt(face, 10);
+    if (!Number.isInteger(q) || q < 1) return;
+    if (!room.isFaceoff && (!Number.isInteger(f) || f < 1 || f > 6)) return;
+    room.pendingIPChallenge = { challengerId: challenger.id, challengerName: challenger.name, accusedId: accused.id, accusedName: accused.name, qty: q, face: f };
+    io.to(accused.id).emit('ip_confirm_request', { challengerName: challenger.name, qty: q, face: f });
+    io.to(roomId).emit('ip_challenge_pending', { challengerName: challenger.name, accusedName: accused.name, qty: q, face: f });
+  });
+
+  // ── In-person: accused confirms bid ───
+  socket.on('ip_confirm', ({ qty, face }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (!room.pendingIPChallenge || socket.id !== room.pendingIPChallenge.accusedId) return;
+    const { challengerId, accusedId } = room.pendingIPChallenge;
+    const q = parseInt(qty, 10);
+    const f = room.isFaceoff ? null : parseInt(face, 10);
+    if (!Number.isInteger(q) || q < 1) return;
+    if (!room.isFaceoff && (!Number.isInteger(f) || f < 1 || f > 6)) return;
+    room.currentBid = { quantity: q, face: f };
+    room.lastBidderIndex = room.players.findIndex(p => p.id === accusedId);
+    const challenger = room.players.find(p => p.id === challengerId);
+    room.pendingIPChallenge = null;
+    if (!challenger || room.lastBidderIndex === -1) return;
+    processChallenge(challenger, room, roomId);
+  });
+
+  // ── In-person: cancel pending challenge
+  socket.on('ip_cancel', () => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (!room.pendingIPChallenge) return;
+    if (socket.id !== room.pendingIPChallenge.challengerId && socket.id !== room.pendingIPChallenge.accusedId) return;
+    room.pendingIPChallenge = null;
+    io.to(roomId).emit('ip_challenge_cancelled');
   });
 
   // ── Reactions ─────────────────────────

@@ -706,6 +706,39 @@ input[type="text"]::placeholder { color: var(--muted); }
 #ragequit-buttons { display: flex; gap: 10px; }
 #ragequit-buttons .btn { margin-top: 0; }
 
+/* ── In-person Mode ─────────────────────────────────────────────────── */
+#ip-action-ui { display: flex; justify-content: center; }
+.btn-ip-liar {
+  width: 100%; max-width: 320px; font-size: 1.15rem; font-weight: 800;
+  padding: 18px; letter-spacing: 1px; margin-top: 0;
+}
+
+#ip-liar-overlay, #ip-confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.82);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 60; padding: 20px; animation: fadeIn .2s ease;
+}
+#ip-liar-overlay.hidden, #ip-confirm-overlay.hidden { display: none; }
+.ip-panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px 24px;
+  width: 100%; max-width: 420px;
+}
+.ip-panel-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 6px; }
+.ip-subtitle { font-size: .88rem; color: var(--muted); margin-bottom: 18px; }
+.ip-bid-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+.ip-panel-btns { display: flex; gap: 10px; margin-top: 22px; }
+.ip-panel-btns .btn { flex: 1; margin-top: 0; }
+#ip-accused-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ip-accused-btn {
+  padding: 9px 18px;
+  background: rgba(255,255,255,.06); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: .9rem; font-weight: 600;
+  cursor: pointer; touch-action: manipulation; transition: border-color .15s, background .15s;
+}
+.ip-accused-btn:hover { border-color: var(--muted); }
+.ip-accused-btn.selected { border-color: var(--danger); background: rgba(239,68,68,.15); color: var(--danger); }
+
 /* ── Game Menu ───────────────────────────────────────────────────────── */
 #game-menu-wrap {
   position: fixed; top: 12px; right: 16px; z-index: 150;

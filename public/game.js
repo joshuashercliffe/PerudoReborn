@@ -62,6 +62,9 @@ let showBidHistory = localStorage.getItem('showBidHistory') === 'true';
 let hideDice       = localStorage.getItem('hideDice') === 'true';
 let diceRevealed   = false;
 let dealGeneration = 0;
+let ipLiarQty = 1, ipLiarFace = 2, ipLiarAccused = null;
+let ipConfQty = 1, ipConfFace = 2;
+let ipChallengePending = false;
 let currentRoomId  = null;
 
 // Active player helpers
@@ -524,7 +527,8 @@ const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
 function applyDicePrivacy() {
   const cover = document.getElementById('dice-privacy-cover');
   const diceEl = document.getElementById('my-dice');
-  if (!hideDice) {
+  const effectiveHide = hideDice || (gs?.isInPerson && gs?.phase === 'playing');
+  if (!effectiveHide) {
     cover.classList.add('hidden');
     diceEl.classList.remove('dice-obscured');
     return;
@@ -538,7 +542,8 @@ function applyDicePrivacy() {
 }
 
 document.getElementById('dice-privacy-cover').addEventListener('click', () => {
-  if (!hideDice) return;
+  const effectiveHide = hideDice || (gs?.isInPerson && gs?.phase === 'playing');
+  if (!effectiveHide) return;
   diceRevealed = !diceRevealed;
   applyDicePrivacy();
 });
@@ -565,6 +570,117 @@ function updateBidHistoryVisibility() {
 })();
 
 // ─────────────────────────────────────────────────────────────────────────────
+// In-person mode
+// ─────────────────────────────────────────────────────────────────────────────
+function ipFacePicker(containerId, getVal, setVal) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = [1,2,3,4,5,6].map(f => `<button class="face-btn" data-face="${f}">${makeDie(f)}</button>`).join('');
+  el.addEventListener('click', e => {
+    const b = e.target.closest('.face-btn'); if (!b) return;
+    setVal(parseInt(b.dataset.face, 10));
+    el.querySelectorAll('.face-btn').forEach(btn => btn.classList.toggle('selected', parseInt(btn.dataset.face,10) === getVal()));
+  });
+}
+
+(function initInPersonMode() {
+  ipFacePicker('ip-face-picker', () => ipLiarFace, v => { ipLiarFace = v; });
+  ipFacePicker('ip-conf-face-picker', () => ipConfFace, v => { ipConfFace = v; });
+
+  // Liar modal: qty
+  document.getElementById('ip-qty-down').addEventListener('click', () => {
+    ipLiarQty = Math.max(1, ipLiarQty - 1);
+    document.getElementById('ip-qty-val').textContent = ipLiarQty;
+  });
+  document.getElementById('ip-qty-up').addEventListener('click', () => {
+    ipLiarQty++;
+    document.getElementById('ip-qty-val').textContent = ipLiarQty;
+  });
+
+  // Liar modal: accused player selection
+  document.getElementById('ip-accused-list').addEventListener('click', e => {
+    const b = e.target.closest('[data-id]'); if (!b) return;
+    ipLiarAccused = b.dataset.id;
+    document.querySelectorAll('#ip-accused-list [data-id]').forEach(btn =>
+      btn.classList.toggle('selected', btn.dataset.id === ipLiarAccused));
+    document.getElementById('btn-ip-submit').disabled = false;
+  });
+
+  document.getElementById('btn-ip-cancel').addEventListener('click', () => hideEl('ip-liar-overlay'));
+
+  document.getElementById('btn-ip-submit').addEventListener('click', () => {
+    if (!ipLiarAccused) return;
+    p().socket.emit('ip_challenge', { qty: ipLiarQty, face: ipLiarFace, accusedId: ipLiarAccused });
+    hideEl('ip-liar-overlay');
+  });
+
+  // Confirm modal: qty
+  document.getElementById('ip-conf-qty-down').addEventListener('click', () => {
+    ipConfQty = Math.max(1, ipConfQty - 1);
+    document.getElementById('ip-conf-qty-val').textContent = ipConfQty;
+  });
+  document.getElementById('ip-conf-qty-up').addEventListener('click', () => {
+    ipConfQty++;
+    document.getElementById('ip-conf-qty-val').textContent = ipConfQty;
+  });
+
+  document.getElementById('btn-ip-conf-cancel').addEventListener('click', () => {
+    p().socket.emit('ip_cancel');
+    hideEl('ip-confirm-overlay');
+  });
+
+  document.getElementById('btn-ip-conf-confirm').addEventListener('click', () => {
+    p().socket.emit('ip_confirm', { qty: ipConfQty, face: ipConfFace });
+    hideEl('ip-confirm-overlay');
+  });
+
+  // Call Liar button: open the liar modal
+  document.getElementById('btn-ip-liar').addEventListener('click', () => {
+    if (!gs || ipChallengePending) return;
+    ipLiarQty     = 1;
+    ipLiarFace    = 2;
+    ipLiarAccused = null;
+    document.getElementById('ip-qty-val').textContent = ipLiarQty;
+    gs.isFaceoff ? hideEl('ip-face-group') : showEl('ip-face-group');
+    document.querySelectorAll('#ip-face-picker .face-btn').forEach(btn =>
+      btn.classList.toggle('selected', parseInt(btn.dataset.face, 10) === ipLiarFace));
+    document.getElementById('ip-accused-list').innerHTML = gs.players
+      .filter(pl => pl.id !== pid())
+      .map(pl => `<button class="ip-accused-btn" data-id="${esc(pl.id)}">${esc(pl.name)}</button>`)
+      .join('');
+    document.getElementById('btn-ip-submit').disabled = true;
+    showEl('ip-liar-overlay');
+  });
+})();
+
+// In-person server events
+socket1.on('ip_confirm_request', ({ challengerName, qty, face }) => {
+  ipConfQty  = qty;
+  ipConfFace = face ?? 2;
+  document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar!`;
+  document.getElementById('ip-conf-qty-val').textContent  = ipConfQty;
+  const isFaceoff = face === null;
+  isFaceoff ? hideEl('ip-conf-face-group') : showEl('ip-conf-face-group');
+  if (!isFaceoff) {
+    document.querySelectorAll('#ip-conf-face-picker .face-btn').forEach(btn =>
+      btn.classList.toggle('selected', parseInt(btn.dataset.face, 10) === ipConfFace));
+  }
+  showEl('ip-confirm-overlay');
+});
+
+socket1.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
+  ipChallengePending = true;
+  renderGame();
+  toast(`${challengerName} is calling liar on ${accusedName}'s bid…`, 'warn');
+});
+
+socket1.on('ip_challenge_cancelled', () => {
+  ipChallengePending = false;
+  hideEl('ip-confirm-overlay');
+  renderGame();
+  toast('Challenge cancelled', '');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Game — round start
 // ─────────────────────────────────────────────────────────────────────────────
 socket1.on('round_start', state => {
@@ -576,6 +692,8 @@ socket1.on('round_start', state => {
     PS[1].autoLiar = (state.autoLiarPlayerId === PS[1].id);
   }
   diceRevealed = false;
+  ipChallengePending = false;
+  hideEl('ip-confirm-overlay');
   bidHistory = [];
   hideEl('reveal-overlay');
   showScreen('screen-game');
@@ -655,6 +773,8 @@ function renderPlayersBar() {
 }
 
 function renderBidDisplay() {
+  if (gs.isInPerson) { hideEl('bid-display'); return; }
+  showEl('bid-display');
   const valEl = document.getElementById('bid-display-value');
   const byEl  = document.getElementById('bid-display-by');
   if (gs.currentBid) {
@@ -692,6 +812,8 @@ function renderQuickMaths() {
 
 function renderStatus() {
   const bar = document.getElementById('status-bar');
+  if (gs.isInPerson) { bar.textContent = ''; bar.className = ''; hideEl('status-bar'); return; }
+  showEl('status-bar');
   if (gs.currentPlayerId === pid()) {
     if (gs.isFaceoff) {
       bar.textContent = gs.firstBidOfRound ? 'Faceoff — bid the sum of both dice!' : 'Your turn — bid higher!';
@@ -706,6 +828,7 @@ function renderStatus() {
 }
 
 function renderBidHistory() {
+  if (gs?.isInPerson) { hideEl('bid-history-inline'); return; }
   updateBidHistoryVisibility();
   if (!showBidHistory) return;
   const list = document.getElementById('bid-history-list');
@@ -790,6 +913,7 @@ function dealMyDice() {
 }
 
 function renderAutoLiarBtn() {
+  if (gs.isInPerson) { hideEl('autoliar-section'); return; }
   const isMyTurn  = gs.currentPlayerId === pid();
   const isPlaying = gs.phase === 'playing';
   if (isPlaying && !isMyTurn && !gs.isFaceoff) {
@@ -818,6 +942,14 @@ function renderReactionButtons() {
 }
 
 function renderActionUI() {
+  if (gs.isInPerson) {
+    hideEl('action-ui');
+    const active = gs.phase === 'playing' && !ipChallengePending;
+    active ? showEl('ip-action-ui') : hideEl('ip-action-ui');
+    document.getElementById('btn-ip-liar').disabled = ipChallengePending;
+    return;
+  }
+  hideEl('ip-action-ui');
   const isMyTurn = gs.currentPlayerId === pid() && gs.phase === 'playing';
   if (!isMyTurn) { hideEl('action-ui'); return; }
 
@@ -987,6 +1119,8 @@ socket1.on('bid_error', ({ message }) => toast(message, 'error'));
 // LIAR called
 // ─────────────────────────────────────────────────────────────────────────────
 socket1.on('liar_called', ({ challengerName, isPeak }) => {
+  ipChallengePending = false;
+  hideEl('ip-confirm-overlay');
   bidHistory.push({ type: 'liar', name: challengerName });
 
   if (isPeak) {

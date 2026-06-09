@@ -316,6 +316,11 @@
         <button id="btn-autoliar" class="btn btn-autoliar">🔒 Lock in Autoliar</button>
       </div>
 
+      <!-- In-person mode: single Liar button for all players -->
+      <div id="ip-action-ui" class="hidden">
+        <button id="btn-ip-liar" class="btn btn-ip-liar">🚨 Call Liar</button>
+      </div>
+
       <!-- Reactions — available to all living players during gameplay -->
       <div id="reaction-buttons" class="hidden">
         <button id="btn-react-ice" class="btn-react">🧊 ice</button>
@@ -333,6 +338,62 @@
         <div id="ragequit-buttons">
           <button id="btn-ragequit-yes" class="btn btn-danger" style="touch-action:manipulation">Yes, I rage quit</button>
           <button id="btn-ragequit-no"  class="btn btn-secondary" style="touch-action:manipulation">No, I stay</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- In-person: challenger liar input -->
+    <div id="ip-liar-overlay" class="hidden">
+      <div class="ip-panel">
+        <h3 class="ip-panel-title">Call Liar</h3>
+        <p class="ip-subtitle">What bid are you challenging?</p>
+        <div class="ip-bid-row">
+          <div class="control-group">
+            <label>Quantity</label>
+            <div class="qty-control">
+              <button id="ip-qty-down" class="btn-stepper">−</button>
+              <span id="ip-qty-val">1</span>
+              <button id="ip-qty-up" class="btn-stepper">+</button>
+            </div>
+          </div>
+          <div class="control-group" id="ip-face-group">
+            <label>Face</label>
+            <div id="ip-face-picker"></div>
+          </div>
+        </div>
+        <div class="control-group" style="margin-top:16px">
+          <label>Who made this bid?</label>
+          <div id="ip-accused-list"></div>
+        </div>
+        <div class="ip-panel-btns">
+          <button id="btn-ip-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-ip-submit" class="btn btn-danger" disabled>Challenge!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- In-person: accused bid confirmation -->
+    <div id="ip-confirm-overlay" class="hidden">
+      <div class="ip-panel">
+        <h3 class="ip-panel-title" id="ip-confirm-title"></h3>
+        <p class="ip-subtitle">Adjust if wrong, then confirm:</p>
+        <div class="ip-bid-row">
+          <div class="control-group">
+            <label>Quantity</label>
+            <div class="qty-control">
+              <button id="ip-conf-qty-down" class="btn-stepper">−</button>
+              <span id="ip-conf-qty-val">1</span>
+              <button id="ip-conf-qty-up" class="btn-stepper">+</button>
+            </div>
+          </div>
+          <div class="control-group" id="ip-conf-face-group">
+            <label>Face</label>
+            <div id="ip-conf-face-picker"></div>
+          </div>
+        </div>
+        <div class="ip-panel-btns">
+          <button id="btn-ip-conf-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-ip-conf-confirm" class="btn btn-danger">Confirm</button>
         </div>
       </div>
     </div>
