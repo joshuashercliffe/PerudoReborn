@@ -193,7 +193,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   padding: 6px 8px; align-items: stretch;
 }
 .player-chip {
-  flex: 0 0 calc((100% - 25px) / 6);
+  flex: 0 0 var(--chip-w, calc((100% - 25px) / 6));
   border: 2px solid var(--border); border-radius: 8px;
   padding: 4px 5px; text-align: center; min-width: 0;
   transition: border-color .2s, box-shadow .2s;
