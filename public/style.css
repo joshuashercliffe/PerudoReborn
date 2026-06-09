@@ -609,9 +609,8 @@ input[type="text"]::placeholder { color: var(--muted); }
   background: rgba(255,255,255,.05); border: 1px solid var(--border);
   border-radius: 20px; color: var(--muted); cursor: pointer;
   touch-action: manipulation; transition: all .15s;
-  white-space: nowrap;
+  white-space: nowrap; outline: none;
 }
-.mode-btn:hover:not(:disabled), .setting-pill:hover:not(:disabled) { border-color: var(--muted); color: var(--text); }
 .mode-btn.active, .setting-pill.active {
   border-color: var(--accent);
   background: rgba(233,69,96,.22);
