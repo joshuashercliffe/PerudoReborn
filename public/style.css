@@ -189,14 +189,13 @@ input[type="text"]::placeholder { color: var(--muted); }
   background: var(--bg-card); border-bottom: 1px solid var(--border);
 }
 #players-bar {
-  display: flex; flex: 1; gap: 6px; overflow-x: auto;
-  padding: 8px 10px; align-items: center;
-  scrollbar-width: none;
+  display: flex; flex: 1; gap: 5px; flex-wrap: wrap;
+  padding: 6px 8px; align-items: stretch;
 }
-#players-bar::-webkit-scrollbar { display: none; }
 .player-chip {
-  border: 2px solid var(--border); border-radius: 10px;
-  padding: 6px 10px; text-align: center; flex-shrink: 0;
+  flex: 1 1 calc(16.5% - 5px);
+  border: 2px solid var(--border); border-radius: 8px;
+  padding: 4px 5px; text-align: center; min-width: 0;
   transition: border-color .2s, box-shadow .2s;
 }
 .player-chip.is-active { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); background: rgba(233,69,96,.07); }
