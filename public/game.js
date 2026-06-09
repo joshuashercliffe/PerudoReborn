@@ -158,18 +158,32 @@ function clientValidate(state, qty, face) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen: Landing
 // ─────────────────────────────────────────────────────────────────────────────
+const landingNameInput = document.getElementById('landing-name-input');
+const roomCodeInput    = document.getElementById('room-code-input');
+
+function getLandingName() { return landingNameInput.value.trim(); }
+
+function landingError(msg) {
+  const el = document.getElementById('landing-error');
+  el.textContent = msg;
+  showEl('landing-error');
+}
+
 document.getElementById('btn-create-game').addEventListener('click', () => {
+  if (!getLandingName()) { landingNameInput.focus(); return; }
+  hideEl('landing-error');
   socket1.emit('create_room');
 });
 
-const roomCodeInput = document.getElementById('room-code-input');
 roomCodeInput.addEventListener('input', () => {
   roomCodeInput.value = roomCodeInput.value.toUpperCase();
 });
 roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitJoinGame(); });
+landingNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-create-game').click(); });
 document.getElementById('btn-join-game').addEventListener('click', submitJoinGame);
 
 function submitJoinGame() {
+  if (!getLandingName()) { landingNameInput.focus(); return; }
   const code = roomCodeInput.value.trim().toUpperCase();
   if (!code) { roomCodeInput.focus(); return; }
   hideEl('landing-error');
@@ -178,37 +192,19 @@ function submitJoinGame() {
 
 socket1.on('room_created', ({ roomId }) => {
   currentRoomId = roomId;
-  showScreen('screen-name');
-  document.getElementById('name-input').focus();
+  socket1.emit('set_name', { name: getLandingName() });
 });
 
 socket1.on('join_game_ok', ({ roomId }) => {
   currentRoomId = roomId;
   hideEl('landing-error');
-  showScreen('screen-name');
-  document.getElementById('name-input').focus();
+  socket1.emit('set_name', { name: getLandingName() });
 });
 
 socket1.on('join_error', ({ message }) => {
   showScreen('screen-landing');
-  const errEl = document.getElementById('landing-error');
-  errEl.textContent = message;
-  showEl('landing-error');
+  landingError(message);
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen: Name
-// ─────────────────────────────────────────────────────────────────────────────
-const nameInput = document.getElementById('name-input');
-nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitName(); });
-document.getElementById('name-submit').addEventListener('click', submitName);
-
-function submitName() {
-  const n = nameInput.value.trim();
-  if (!n) { nameInput.focus(); return; }
-  hideEl('name-error');
-  socket1.emit('set_name', { name: n });
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lobby
@@ -1506,7 +1502,6 @@ socket1.on('game_reset', () => {
     updateToggleLabels();
   }
 
-  document.getElementById('name-input').value      = '';
   document.getElementById('room-code-input').value = '';
   hideEl('p2-setup');
   showScreen('screen-landing');
