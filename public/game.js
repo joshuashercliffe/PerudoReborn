@@ -59,7 +59,7 @@ let selQty         = 1;
 let selFace        = 2;
 let bidHistory     = [];
 let showBidHistory = localStorage.getItem('showBidHistory') === 'true';
-let hideDice       = localStorage.getItem('hideDice') === 'true';
+let hideDice       = false;
 let diceRevealed   = false;
 let dealGeneration = 0;
 let ipLiarQty = 1, ipLiarFace = 2, ipLiarAccused = null;
@@ -531,7 +531,6 @@ document.getElementById('toggle-p1').addEventListener('click', () => switchPlaye
 
   diceCheck.addEventListener('change', () => {
     hideDice = diceCheck.checked;
-    localStorage.setItem('hideDice', hideDice);
     if (!hideDice) diceRevealed = false;
     applyDicePrivacy();
   });
