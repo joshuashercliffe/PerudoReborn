@@ -39,9 +39,9 @@ function makeColoredDie(value, color, extraClass = '') {
   return `<div class="die${extraClass ? ' ' + extraClass : ''}" style="--dot-color:${color};box-shadow:0 3px 10px rgba(0,0,0,.4),0 0 0 2px ${color}44,0 1px 0 #ccc">${dots}</div>`;
 }
 
-fetch('/version').then(r => r.json()).then(({ version, deployedAt }) => {
-  const date = new Date(deployedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-  document.getElementById('build-info').textContent = `v${version} · ${date}`;
+fetch('/version').then(r => r.json()).then(({ build, deployedAt }) => {
+  const date = new Date(deployedAt).toISOString().slice(0, 10);
+  document.getElementById('build-info').textContent = `build ${build} · ${date}`;
 }).catch(() => {});
 
 // ─── Per-player state ─────────────────────────────────────────────────────────
