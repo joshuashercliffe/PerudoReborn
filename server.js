@@ -47,6 +47,7 @@ function createRoomState() {
     gameMode: 'standard',
     isVariable: false,
     isInPerson: false,
+    nextRoundReady: [],
     players: [],
     host: null,
     currentPlayerIndex: 0,
@@ -226,6 +227,7 @@ function startRound(room, roomId) {
   room.firstBidOfRound = true;
   room.lastBidderIndex = -1;
   room.revealResolved = false;
+  room.nextRoundReady = [];
 
   const isFaceoffRound = room.players.length === 2 && room.players.every(p => p.diceCount === 1);
   if (isFaceoffRound) {
@@ -647,8 +649,13 @@ io.on('connection', socket => {
     const { room, roomId } = ctx;
     if (room.phase !== 'reveal' || !room.revealResolved) return;
     if (!room.players.find(p => p.id === socket.id)) return;
-    room.revealResolved = false;
-    startRound(room, roomId);
+    if (room.nextRoundReady.includes(socket.id)) return;
+
+    room.nextRoundReady.push(socket.id);
+
+    const connectedIds = room.players.filter(p => p.connected).map(p => p.id);
+    const allReady = connectedIds.every(id => room.nextRoundReady.includes(id));
+    if (allReady) startRound(room, roomId);
   });
 
   // ── Reactions ─────────────────────────

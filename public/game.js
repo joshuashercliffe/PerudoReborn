@@ -1011,7 +1011,7 @@ socket1.on('reveal_resolved', () => {
 });
 
 document.getElementById('btn-next-round').addEventListener('click', () => {
-  hideEl('btn-next-round');
+  hideEl('reveal-overlay');
   p().socket.emit('next_round');
 });
 
