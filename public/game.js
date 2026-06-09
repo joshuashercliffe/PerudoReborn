@@ -959,11 +959,11 @@ function positionIPDice(container, wraps) {
 
   wraps.forEach((w, i) => {
     const angle = N <= 1 ? 0
-      : (i / N) * Math.PI * 2 - Math.PI / 2 + Math.sin(i * 1.9 + 0.8) * 0.22;
-    const r = R + (N > 1 ? Math.cos(i * 2.3) * 8 : 0);
+      : (i / N) * Math.PI * 2 - Math.PI / 2 + (Math.random() - 0.5) * 0.45;
+    const r = R + (N > 1 ? (Math.random() - 0.5) * 16 : 0);
     const x = CX + (N <= 1 ? 0 : Math.cos(angle) * r) - DIE / 2;
     const y = CX + (N <= 1 ? 0 : Math.sin(angle) * r) - DIE / 2;
-    const rot = Math.sin(i * 1.5 + 0.3) * 12;
+    const rot = (Math.random() - 0.5) * 24;
     w.style.position  = 'absolute';
     w.style.left      = x.toFixed(1) + 'px';
     w.style.top       = y.toFixed(1) + 'px';
