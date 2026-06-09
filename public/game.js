@@ -492,12 +492,15 @@ function initPlayer2(name) {
 }
 
 function updateToggleLabels() {
-  const b0 = document.getElementById('toggle-p0');
-  const b1 = document.getElementById('toggle-p1');
-  b0.textContent = `P1: ${PS[0]?.name ?? '—'}`;
-  b1.textContent = `P2: ${PS[1]?.name ?? '—'}`;
-  b0.classList.toggle('ptoggle-active', activeIdx === 0);
-  b1.classList.toggle('ptoggle-active', activeIdx === 1);
+  [0, 1].forEach(i => {
+    const btn = document.getElementById(`toggle-p${i}`);
+    const ps  = PS[i];
+    if (!ps) { btn.textContent = '—'; btn.classList.remove('ptoggle-active'); return; }
+    const player = gs?.players?.find(p => p.id === ps.id);
+    const dice   = player ? ' ' + '🎲'.repeat(player.diceCount) : '';
+    btn.textContent = (ps.name ?? '—') + dice;
+    btn.classList.toggle('ptoggle-active', activeIdx === i);
+  });
 }
 
 function switchPlayer(idx) {
