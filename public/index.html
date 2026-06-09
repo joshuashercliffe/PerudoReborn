@@ -222,6 +222,17 @@
     </div>
   </div>
 
+  <!-- Game settings menu — shown only during game screen -->
+  <div id="game-menu-wrap" class="hidden">
+    <button id="game-menu-btn" class="game-menu-btn" title="Settings">⋮</button>
+    <div id="game-menu-panel" class="hidden">
+      <label class="menu-toggle-row">
+        <input type="checkbox" id="toggle-bid-history">
+        <span>Show bid history</span>
+      </label>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════════════ -->
   <!-- SCREEN: Game                            -->
   <!-- ═══════════════════════════════════════ -->
@@ -236,6 +247,11 @@
         <span id="mode-badge" class="hidden">🔄 REVERSE</span>
         <span id="palifico-badge" class="hidden">🔥 PALIFICO</span>
         <span id="faceoff-badge" class="hidden">⚔️ FACEOFF</span>
+      </div>
+
+      <!-- Bid history — shown above current bid when enabled -->
+      <div id="bid-history-inline" class="hidden">
+        <div id="bid-history-list"></div>
       </div>
 
       <!-- Bid + Quick Maths side by side -->
@@ -295,12 +311,6 @@
         <button id="btn-react-ice" class="btn-react">🧊 ice</button>
         <button id="btn-react-fire" class="btn-react">🔥 hot</button>
       </div>
-
-      <!-- Bid history — collapsed by default -->
-      <details id="bid-history-section">
-        <summary>Bid History</summary>
-        <div id="bid-history-list"></div>
-      </details>
 
       <button id="btn-end-game" class="btn btn-end-game">End Game</button>
 

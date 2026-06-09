@@ -58,6 +58,7 @@ let gs             = null;
 let selQty         = 1;
 let selFace        = 2;
 let bidHistory     = [];
+let showBidHistory = localStorage.getItem('showBidHistory') === 'true';
 let dealGeneration = 0;
 let currentRoomId  = null;
 
@@ -87,6 +88,7 @@ function esc(s) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  id === 'screen-game' ? showEl('game-menu-wrap') : hideEl('game-menu-wrap');
 }
 
 function showEl(id) { const el = typeof id === 'string' ? document.getElementById(id) : id; el?.classList.remove('hidden'); }
@@ -419,6 +421,36 @@ document.getElementById('toggle-p0').addEventListener('click', () => switchPlaye
 document.getElementById('toggle-p1').addEventListener('click', () => switchPlayer(1));
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Game menu
+// ─────────────────────────────────────────────────────────────────────────────
+(function initGameMenu() {
+  const menuBtn   = document.getElementById('game-menu-btn');
+  const menuPanel = document.getElementById('game-menu-panel');
+  const histCheck = document.getElementById('toggle-bid-history');
+
+  histCheck.checked = showBidHistory;
+
+  menuBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    menuPanel.classList.toggle('hidden');
+  });
+
+  document.addEventListener('click', () => menuPanel.classList.add('hidden'));
+  menuPanel.addEventListener('click', e => e.stopPropagation());
+
+  histCheck.addEventListener('change', () => {
+    showBidHistory = histCheck.checked;
+    localStorage.setItem('showBidHistory', showBidHistory);
+    updateBidHistoryVisibility();
+    if (showBidHistory) renderBidHistory();
+  });
+})();
+
+function updateBidHistoryVisibility() {
+  showBidHistory ? showEl('bid-history-inline') : hideEl('bid-history-inline');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Face picker
 // ─────────────────────────────────────────────────────────────────────────────
 (function initFacePicker() {
@@ -575,6 +607,8 @@ function renderStatus() {
 }
 
 function renderBidHistory() {
+  updateBidHistoryVisibility();
+  if (!showBidHistory) return;
   const list = document.getElementById('bid-history-list');
   if (!bidHistory.length) {
     list.innerHTML = '<span class="muted-msg" style="padding:4px 6px;font-size:.85rem">No bids yet this round</span>';
