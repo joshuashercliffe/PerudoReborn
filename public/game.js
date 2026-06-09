@@ -570,13 +570,18 @@ function applyDicePrivacy() {
 (function initDicePrivacyCover() {
   const cover = document.getElementById('dice-privacy-cover');
 
-  cover.addEventListener('pointerdown', e => {
+  const startReveal = e => {
     const effectiveHide = hideDice || (gs?.isInPerson && gs?.phase === 'playing');
     if (!effectiveHide) return;
     e.preventDefault();
     diceRevealed = true;
     applyDicePrivacy();
-  });
+  };
+
+  cover.addEventListener('pointerdown', startReveal);
+  // touchstart fallback: fires before pointerdown on some browsers when
+  // contact shape is irregular (e.g. side of hand), needs passive:false
+  cover.addEventListener('touchstart', startReveal, { passive: false });
 
   const endReveal = () => {
     if (!diceRevealed) return;
@@ -586,6 +591,7 @@ function applyDicePrivacy() {
 
   document.addEventListener('pointerup',     endReveal);
   document.addEventListener('pointercancel', endReveal);
+  document.addEventListener('touchend',      endReveal);
 })();
 
 function updateBidHistoryVisibility() {
