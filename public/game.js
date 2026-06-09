@@ -884,7 +884,10 @@ function renderPlayersBar() {
   const sorted = myIdx < 1
     ? gs.players
     : [...gs.players.slice(myIdx), ...gs.players.slice(0, myIdx)];
-  document.getElementById('players-bar').innerHTML = sorted.map(pl => {
+  const perRow = Math.min(sorted.length, 6);
+  const bar = document.getElementById('players-bar');
+  bar.style.setProperty('--chip-w', `calc((100% - ${(perRow - 1) * 5}px) / ${perRow})`);
+  bar.innerHTML = sorted.map(pl => {
     const active   = pl.id === gs.currentPlayerId;
     const me       = pl.id === myId;
     const canKick  = iAmHost && !pl.connected && !me;
