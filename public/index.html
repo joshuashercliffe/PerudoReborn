@@ -295,6 +295,26 @@
         <button id="btn-autoliar" class="btn btn-autoliar">🔒 Lock in Autoliar</button>
       </div>
 
+      <!-- Lock Bid — pre-select a bid before your turn -->
+      <div id="lockbid-section" class="hidden">
+        <div id="lockbid-input">
+          <div id="lockbid-controls">
+            <div class="qty-control">
+              <button id="lb-qty-up" class="btn-stepper">+</button>
+              <span id="lb-qty-val">1</span>
+              <button id="lb-qty-down" class="btn-stepper">−</button>
+            </div>
+            <div id="lb-face-picker"><!-- populated by JS --></div>
+          </div>
+          <div id="lb-hint-msg"></div>
+          <button id="btn-lock-bid" class="btn btn-lockbid">🔒 Lock Bid</button>
+        </div>
+        <div id="lockbid-locked" class="hidden">
+          <span id="lockbid-locked-label"></span>
+          <button id="btn-unlock-bid" class="btn btn-sm">✕ Unlock</button>
+        </div>
+      </div>
+
       <!-- Reactions — available to all living players during gameplay -->
       <div id="reaction-buttons" class="hidden">
         <button id="btn-react-ice" class="btn-react">🧊 ice</button>

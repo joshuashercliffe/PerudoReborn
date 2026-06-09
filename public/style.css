@@ -709,6 +709,29 @@ body.dual-mode .player-chip { cursor: pointer; }
   50% { box-shadow: 0 0 18px rgba(220,38,38,.6); }
 }
 
+/* ── Lock Bid section ────────────────────────────────────────────────── */
+#lockbid-section { margin: 4px 0; }
+#lockbid-controls { display: flex; gap: 16px; justify-content: center; align-items: center; margin-bottom: 8px; }
+#lb-qty-val { font-size: 1.5rem; font-weight: 900; min-width: 36px; text-align: center; }
+#lb-face-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+#lb-face-picker .face-btn { width: 40px; height: 40px; }
+#lb-face-picker .face-btn .die { width: 26px; height: 26px; padding: 3px; }
+#lb-hint-msg { min-height: 16px; font-size: .8rem; color: var(--warning); text-align: center; margin-bottom: 8px; }
+.btn-lockbid {
+  background: rgba(34,197,94,.12); color: var(--success);
+  border: 1px solid rgba(34,197,94,.35); border-radius: 10px;
+  font-size: .85rem; font-weight: 700; padding: 8px 20px;
+  transition: background .2s, transform .15s;
+}
+.btn-lockbid:hover:not(:disabled) { background: rgba(34,197,94,.22); transform: translateY(-1px); }
+#lockbid-locked {
+  display: flex; align-items: center; gap: 10px;
+  justify-content: center; padding: 8px 12px;
+  background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.3);
+  border-radius: 8px;
+}
+#lockbid-locked-label { font-weight: 700; color: var(--success); font-size: .9rem; }
+
 /* ── Reaction buttons ────────────────────────────────────────────────── */
 #reaction-buttons {
   display: flex; justify-content: center; gap: 12px; margin: 4px 0;
