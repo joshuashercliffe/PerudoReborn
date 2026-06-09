@@ -377,19 +377,15 @@
     <div id="ip-confirm-overlay" class="hidden">
       <div class="ip-panel">
         <h3 class="ip-panel-title" id="ip-confirm-title"></h3>
-        <p class="ip-subtitle">Adjust if wrong, then confirm:</p>
+        <p class="ip-subtitle">Did they bid this?</p>
         <div class="ip-bid-row">
           <div class="control-group">
             <label>Quantity</label>
-            <div class="qty-control">
-              <button id="ip-conf-qty-down" class="btn-stepper">−</button>
-              <span id="ip-conf-qty-val">1</span>
-              <button id="ip-conf-qty-up" class="btn-stepper">+</button>
-            </div>
+            <span id="ip-conf-qty-val" class="bid-qty"></span>
           </div>
           <div class="control-group" id="ip-conf-face-group">
             <label>Face</label>
-            <div id="ip-conf-face-picker"></div>
+            <div id="ip-conf-face-display"></div>
           </div>
         </div>
         <div class="ip-panel-btns">

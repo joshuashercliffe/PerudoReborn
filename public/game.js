@@ -462,19 +462,9 @@ function initPlayer2(name) {
   });
 
   // In-person events that target the accused player go to socket2 directly
-  socket2.on('ip_confirm_request', ({ challengerName, qty, face }) => {
+  socket2.on('ip_confirm_request', data => {
     switchPlayer(1);
-    ipConfQty  = qty;
-    ipConfFace = face ?? 2;
-    document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar!`;
-    document.getElementById('ip-conf-qty-val').textContent  = ipConfQty;
-    const isFaceoff = face === null;
-    isFaceoff ? hideEl('ip-conf-face-group') : showEl('ip-conf-face-group');
-    if (!isFaceoff) {
-      document.querySelectorAll('#ip-conf-face-picker .face-btn').forEach(btn =>
-        btn.classList.toggle('selected', parseInt(btn.dataset.face, 10) === ipConfFace));
-    }
-    showEl('ip-confirm-overlay');
+    showIPConfirmOverlay(data);
   });
 
   socket2.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
@@ -630,7 +620,6 @@ function ipFacePicker(containerId, getVal, setVal) {
 
 (function initInPersonMode() {
   ipFacePicker('ip-face-picker', () => ipLiarFace, v => { ipLiarFace = v; });
-  ipFacePicker('ip-conf-face-picker', () => ipConfFace, v => { ipConfFace = v; });
 
   // Liar modal: qty
   document.getElementById('ip-qty-down').addEventListener('click', () => {
@@ -657,16 +646,6 @@ function ipFacePicker(containerId, getVal, setVal) {
     if (!ipLiarAccused) return;
     p().socket.emit('ip_challenge', { qty: ipLiarQty, face: ipLiarFace, accusedId: ipLiarAccused });
     hideEl('ip-liar-overlay');
-  });
-
-  // Confirm modal: qty
-  document.getElementById('ip-conf-qty-down').addEventListener('click', () => {
-    ipConfQty = Math.max(1, ipConfQty - 1);
-    document.getElementById('ip-conf-qty-val').textContent = ipConfQty;
-  });
-  document.getElementById('ip-conf-qty-up').addEventListener('click', () => {
-    ipConfQty++;
-    document.getElementById('ip-conf-qty-val').textContent = ipConfQty;
   });
 
   document.getElementById('btn-ip-conf-cancel').addEventListener('click', () => {
@@ -699,7 +678,7 @@ function ipFacePicker(containerId, getVal, setVal) {
 })();
 
 // In-person server events
-socket1.on('ip_confirm_request', ({ challengerName, qty, face }) => {
+function showIPConfirmOverlay({ challengerName, qty, face }) {
   ipConfQty  = qty;
   ipConfFace = face ?? 2;
   document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar!`;
@@ -707,11 +686,12 @@ socket1.on('ip_confirm_request', ({ challengerName, qty, face }) => {
   const isFaceoff = face === null;
   isFaceoff ? hideEl('ip-conf-face-group') : showEl('ip-conf-face-group');
   if (!isFaceoff) {
-    document.querySelectorAll('#ip-conf-face-picker .face-btn').forEach(btn =>
-      btn.classList.toggle('selected', parseInt(btn.dataset.face, 10) === ipConfFace));
+    document.getElementById('ip-conf-face-display').innerHTML = makeDie(ipConfFace, 'small');
   }
   showEl('ip-confirm-overlay');
-});
+}
+
+socket1.on('ip_confirm_request', showIPConfirmOverlay);
 
 socket1.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
   ipChallengePending = true;
