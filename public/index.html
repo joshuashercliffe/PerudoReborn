@@ -302,6 +302,11 @@
         </div>
       </div>
 
+      <!-- In-person mode: single Liar button for all players -->
+      <div id="ip-action-ui" class="hidden">
+        <button id="btn-ip-liar" class="btn btn-ip-liar">🚨 Call Liar</button>
+      </div>
+
       <div id="my-dice-section">
         <div class="section-label">Your Dice
           <span id="total-dice-note" class="muted-msg"></span>
@@ -315,11 +320,6 @@
       <!-- Autoliar — visible when not your turn -->
       <div id="autoliar-section" class="hidden">
         <button id="btn-autoliar" class="btn btn-autoliar">🔒 Lock in Autoliar</button>
-      </div>
-
-      <!-- In-person mode: single Liar button for all players -->
-      <div id="ip-action-ui" class="hidden">
-        <button id="btn-ip-liar" class="btn btn-ip-liar">🚨 Call Liar</button>
       </div>
 
       <!-- Reactions — available to all living players during gameplay -->

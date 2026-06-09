@@ -460,6 +460,34 @@ function initPlayer2(name) {
     PS[1].dice = dice;
     if (activeIdx === 1) { dealMyDice(); applyDicePrivacy(); }
   });
+
+  // In-person events that target the accused player go to socket2 directly
+  socket2.on('ip_confirm_request', ({ challengerName, qty, face }) => {
+    switchPlayer(1);
+    ipConfQty  = qty;
+    ipConfFace = face ?? 2;
+    document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar!`;
+    document.getElementById('ip-conf-qty-val').textContent  = ipConfQty;
+    const isFaceoff = face === null;
+    isFaceoff ? hideEl('ip-conf-face-group') : showEl('ip-conf-face-group');
+    if (!isFaceoff) {
+      document.querySelectorAll('#ip-conf-face-picker .face-btn').forEach(btn =>
+        btn.classList.toggle('selected', parseInt(btn.dataset.face, 10) === ipConfFace));
+    }
+    showEl('ip-confirm-overlay');
+  });
+
+  socket2.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
+    ipChallengePending = true;
+    if (activeIdx === 1) renderGame();
+    toast(`${challengerName} is calling liar on ${accusedName}'s bid…`, 'warn');
+  });
+
+  socket2.on('ip_challenge_cancelled', () => {
+    ipChallengePending = false;
+    hideEl('ip-confirm-overlay');
+    if (activeIdx === 1) renderGame();
+  });
 }
 
 function updateToggleLabels() {
@@ -542,13 +570,18 @@ function applyDicePrivacy() {
 (function initDicePrivacyCover() {
   const cover = document.getElementById('dice-privacy-cover');
 
-  cover.addEventListener('pointerdown', e => {
+  const startReveal = e => {
     const effectiveHide = hideDice || (gs?.isInPerson && gs?.phase === 'playing');
     if (!effectiveHide) return;
     e.preventDefault();
     diceRevealed = true;
     applyDicePrivacy();
-  });
+  };
+
+  cover.addEventListener('pointerdown', startReveal);
+  // touchstart fallback: fires before pointerdown on some browsers when
+  // contact shape is irregular (e.g. side of hand), needs passive:false
+  cover.addEventListener('touchstart', startReveal, { passive: false });
 
   const endReveal = () => {
     if (!diceRevealed) return;
@@ -558,6 +591,7 @@ function applyDicePrivacy() {
 
   document.addEventListener('pointerup',     endReveal);
   document.addEventListener('pointercancel', endReveal);
+  document.addEventListener('touchend',      endReveal);
 })();
 
 function updateBidHistoryVisibility() {
@@ -1229,11 +1263,10 @@ function showReveal(r) {
     playersRowHtml = revealedDice.map(pd => {
       const color = PLAYER_COLORS[pd.colorIndex ?? 0];
       const isMe  = pd.id === pid();
-      const relevant = [...pd.dice]
-        .filter(d => d === bid.face || (!isPalifico && d === 1 && bid.face !== 1))
-        .sort((a, b) => a - b);
-      if (!relevant.length) return '';
-      const diceHtml = relevant.map(d => makeColoredDie(d, color, 'small')).join('');
+      const diceHtml = pd.dice.map(d => {
+        const isMatch = d === bid.face || (!isPalifico && d === 1 && bid.face !== 1);
+        return makeDie(d, `small${isMatch ? ' highlighted' : ' dim'}`);
+      }).join('');
       return `<div class="reveal-player-section">
         <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
         <div class="reveal-player-dice">${diceHtml}</div>

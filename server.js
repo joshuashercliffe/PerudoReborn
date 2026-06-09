@@ -31,14 +31,37 @@ const rooms        = new Map(); // roomId -> roomState
 const socketToRoom = new Map(); // socketId -> roomId
 const sessions     = {};        // sessionToken -> { socketId, roomId }
 
-const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const ROOM_WORDS = [
+  'ACE','AGE','ALE','ANT','APE','ARC','ARM','ART','ASH','AXE',
+  'BAD','BAG','BAN','BAR','BAT','BED','BEE','BET','BUD','BUG','BUN','BUS','BUT',
+  'CAB','CAN','CAP','CAR','CAT','CUB','CUP','CUT',
+  'DAD','DAM','DEN',
+  'EAR','EAT','EGG','ELK','ELM',
+  'FAN','FAR','FAT','FED','FEW','FUR',
+  'GAP','GAS','GEM','GUN','GUT','GUY',
+  'HAM','HAT','HAY','HEN','HEX','HUB','HUG','HUT',
+  'JAB','JAM','JAR','JAW','JET','JUG',
+  'KEG','KEY',
+  'LAD','LAP','LAW','LAX','LAY','LED','LEG',
+  'MAD','MAP','MAT','MAY','MEN','MET','MUD','MUG',
+  'NAP','NET','NEW','NUT',
+  'PAN','PAR','PAT','PAW','PAY','PEA','PEG','PEN','PET','PUB','PUN','PUT',
+  'RAG','RAM','RAN','RAP','RAT','RAW','RAY','RED','RUG','RUM','RUN','RUT',
+  'SAD','SAP','SAT','SAW','SAY','SEA','SET','SEW','SUB','SUM','SUN',
+  'TAB','TAN','TAP','TAR','TAX','TEA','TEN','TUB','TUG',
+  'VAN','VAT','VET','VEX',
+  'WAR','WAX','WAY','WEB','WED','WET',
+  'YAK','YAM','YEA','YES','YET','YEW',
+  'ZAP','ZED','ZEN'
+];
+const ROOM_DIGITS = '23456789';
 
 function generateRoomId() {
   let id;
   do {
-    id = Array.from({ length: 4 }, () =>
-      ROOM_ID_CHARS[Math.floor(Math.random() * ROOM_ID_CHARS.length)]
-    ).join('');
+    const word  = ROOM_WORDS[Math.floor(Math.random() * ROOM_WORDS.length)];
+    const digit = ROOM_DIGITS[Math.floor(Math.random() * ROOM_DIGITS.length)];
+    id = Math.random() < 0.5 ? word + digit : digit + word;
   } while (rooms.has(id));
   return id;
 }
