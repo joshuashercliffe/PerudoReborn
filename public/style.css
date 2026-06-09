@@ -223,6 +223,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 #my-dice-section { text-align: center; }
 .section-label { font-size: .72rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; }
 #my-dice { display: flex; gap: 17px; justify-content: center; flex-wrap: wrap; }
+#my-dice.ip-cluster { position: relative; display: block; margin: 0 auto; }
 #dice-privacy-cover {
   cursor: pointer; user-select: none; touch-action: none;
   background: rgba(255,255,255,.04); border: 1px dashed rgba(255,255,255,.15);
@@ -255,6 +256,12 @@ input[type="text"]::placeholder { color: var(--muted); }
   gap: 2px;
   border-radius: 8px;
   box-shadow: 0 3px 8px rgba(0,0,0,.4), 0 1px 0 #ccc;
+}
+.die.tiny {
+  width: 26px; height: 26px;
+  padding: 3px; gap: 1px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,.4), 0 1px 0 #ccc;
 }
 .die.highlighted {
   background: #fffbea;

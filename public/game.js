@@ -880,7 +880,7 @@ function renderBidHistory() {
     return `<div class="bid-history-entry">
       <span class="bhe-name">${esc(e.name)}</span>
       <span class="bhe-arrow">→</span>
-      <span class="bhe-bid"><strong>${e.qty}</strong> × ${makeDie(e.face, 'small')}</span>
+      <span class="bhe-bid"><strong>${e.qty}</strong> × ${makeDie(e.face, 'tiny')}</span>
     </div>`;
   }).join('');
   list.scrollTop = list.scrollHeight;
@@ -912,6 +912,8 @@ function renderMyDice() {
 function dealMyDice() {
   const gen = ++dealGeneration;
   const container = document.getElementById('my-dice');
+  container.classList.remove('ip-cluster');
+  container.style.width = container.style.height = '';
   const finalDice = [...pdice()].sort((a, b) => a - b);
   if (!finalDice.length) { container.innerHTML = ''; return; }
 
@@ -931,11 +933,43 @@ function dealMyDice() {
       c.style.transition = 'transform 480ms cubic-bezier(0.34,1.56,0.64,1)';
       c.style.transform = FACE3_TRANSFORMS[finalDice[i]];
     });
-    wraps.forEach((w, i) => {
-      w.style.animationDelay = `${i * 90}ms`;
-      w.classList.add('die3-landing');
-    });
+    if (gs?.isInPerson && gs?.phase === 'playing') {
+      positionIPDice(container, wraps);
+    } else {
+      wraps.forEach((w, i) => {
+        w.style.animationDelay = `${i * 90}ms`;
+        w.classList.add('die3-landing');
+      });
+    }
   }));
+}
+
+function positionIPDice(container, wraps) {
+  const N   = wraps.length;
+  if (!N) return;
+  const DIE  = window.innerWidth <= 560 ? 50 : 68;
+  const RMAP = [0, 0, 42, 50, 56, 60];
+  const R    = RMAP[N] ?? 64;
+  const PAD  = 14;
+  const SIZE = N <= 1 ? DIE + PAD * 2 : R * 2 + DIE + PAD * 2;
+  const CX   = SIZE / 2;
+
+  container.classList.add('ip-cluster');
+  container.style.width  = SIZE + 'px';
+  container.style.height = SIZE + 'px';
+
+  wraps.forEach((w, i) => {
+    const angle = N <= 1 ? 0
+      : (i / N) * Math.PI * 2 - Math.PI / 2 + Math.sin(i * 1.9 + 0.8) * 0.22;
+    const r = R + (N > 1 ? Math.cos(i * 2.3) * 8 : 0);
+    const x = CX + (N <= 1 ? 0 : Math.cos(angle) * r) - DIE / 2;
+    const y = CX + (N <= 1 ? 0 : Math.sin(angle) * r) - DIE / 2;
+    const rot = Math.sin(i * 1.5 + 0.3) * 12;
+    w.style.position  = 'absolute';
+    w.style.left      = x.toFixed(1) + 'px';
+    w.style.top       = y.toFixed(1) + 'px';
+    w.style.transform = `rotate(${rot.toFixed(1)}deg)`;
+  });
 }
 
 function renderAutoLiarBtn() {
