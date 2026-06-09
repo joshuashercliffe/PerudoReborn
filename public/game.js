@@ -63,7 +63,7 @@ let hideDice       = localStorage.getItem('hideDice') === 'true';
 let diceRevealed   = false;
 let dealGeneration = 0;
 let ipLiarQty = 1, ipLiarFace = 2, ipLiarAccused = null;
-let ipConfQty = 1, ipConfFace = 2;
+let ipConfQty = 1, ipConfFace = 2, ipConfirmSocket = null;
 let ipChallengePending = false;
 let currentRoomId  = null;
 
@@ -462,10 +462,7 @@ function initPlayer2(name) {
   });
 
   // In-person events that target the accused player go to socket2 directly
-  socket2.on('ip_confirm_request', data => {
-    switchPlayer(1);
-    showIPConfirmOverlay(data);
-  });
+  socket2.on('ip_confirm_request', data => showIPConfirmOverlay(data, socket2));
 
   socket2.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
     ipChallengePending = true;
@@ -649,12 +646,14 @@ function ipFacePicker(containerId, getVal, setVal) {
   });
 
   document.getElementById('btn-ip-conf-cancel').addEventListener('click', () => {
-    p().socket.emit('ip_cancel');
+    (ipConfirmSocket || p().socket).emit('ip_cancel');
+    ipConfirmSocket = null;
     hideEl('ip-confirm-overlay');
   });
 
   document.getElementById('btn-ip-conf-confirm').addEventListener('click', () => {
-    p().socket.emit('ip_confirm', { qty: ipConfQty, face: ipConfFace });
+    (ipConfirmSocket || p().socket).emit('ip_confirm', { qty: ipConfQty, face: ipConfFace });
+    ipConfirmSocket = null;
     hideEl('ip-confirm-overlay');
   });
 
@@ -678,9 +677,10 @@ function ipFacePicker(containerId, getVal, setVal) {
 })();
 
 // In-person server events
-function showIPConfirmOverlay({ challengerName, qty, face }) {
-  ipConfQty  = qty;
-  ipConfFace = face ?? 2;
+function showIPConfirmOverlay({ challengerName, qty, face }, socket) {
+  ipConfQty      = qty;
+  ipConfFace     = face ?? 2;
+  ipConfirmSocket = socket ?? null;
   document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar!`;
   document.getElementById('ip-conf-qty-val').textContent  = ipConfQty;
   const isFaceoff = face === null;
@@ -691,7 +691,7 @@ function showIPConfirmOverlay({ challengerName, qty, face }) {
   showEl('ip-confirm-overlay');
 }
 
-socket1.on('ip_confirm_request', showIPConfirmOverlay);
+socket1.on('ip_confirm_request', data => showIPConfirmOverlay(data, socket1));
 
 socket1.on('ip_challenge_pending', ({ challengerName, accusedName }) => {
   ipChallengePending = true;
