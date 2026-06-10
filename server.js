@@ -86,7 +86,8 @@ function createRoomState() {
     palificoTriggerPlayer: null,
     roundNumber: 0,
     revealResolved: false,
-    autoLiarPlayerId: null
+    autoLiarPlayerId: null,
+    autoBidPlayerId: null
   };
 }
 
@@ -120,7 +121,8 @@ function publicState(room) {
     gameMode:           room.gameMode,
     isVariable:         room.isVariable,
     isInPerson:         room.isInPerson,
-    autoLiarPlayerId:   room.autoLiarPlayerId
+    autoLiarPlayerId:   room.autoLiarPlayerId,
+    autoBidPlayerId:    room.autoBidPlayerId
   };
 }
 
@@ -255,6 +257,7 @@ function startRound(room, roomId) {
   room.revealResolved = false;
   room.nextRoundReady = [];
   room.pendingIPChallenge = null;
+  room.autoBidPlayerId = null;
 
   const isFaceoffRound = room.players.length === 2 && room.players.every(p => p.diceCount === 1);
   if (isFaceoffRound) {
@@ -627,6 +630,7 @@ io.on('connection', socket => {
     room.lastBidderIndex    = room.currentPlayerIndex;
     room.currentBid         = { quantity: qty, face: room.isFaceoff ? null : f };
     room.firstBidOfRound    = false;
+    if (room.autoBidPlayerId === socket.id) room.autoBidPlayerId = null;
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
 
     io.to(roomId).emit('bid_made', { bid: room.currentBid, bidderName: cp.name, gameState: publicState(room) });
@@ -660,6 +664,7 @@ io.on('connection', socket => {
     const p = room.players.find(pl => pl.id === socket.id);
     if (!p) return;
     if (room.players[room.currentPlayerIndex]?.id === socket.id) return;
+    room.autoBidPlayerId = socket.id;
     io.to(roomId).emit('autobid_update', { playerId: socket.id, playerName: p.name });
   });
 

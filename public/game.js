@@ -943,8 +943,7 @@ function renderPlayersBar() {
     const canKick     = iAmHost && !pl.connected && !me && !dualMode;
     const dice        = pl.diceCount ? `${pl.diceCount}×🎲` : '—';
     const hasAutoliar = pl.id === gs.autoLiarPlayerId;
-    const psLocal     = PS.find(ps => ps?.id === pl.id);
-    const hasAutobid  = !!(psLocal?.lockedBid);
+    const hasAutobid  = pl.id === gs.autoBidPlayerId;
     const locks = (hasAutobid ? '<span class="chip-lock chip-lock-bid">AB</span>' : '')
                 + (hasAutoliar ? '<span class="chip-lock chip-lock-liar">AL</span>' : '');
     return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!pl.connected ? ' disconnected' : ''}" data-id="${esc(pl.id)}">
@@ -1612,6 +1611,7 @@ socket1.on('auto_liar_update', ({ playerId, playerName }) => {
 });
 
 socket1.on('autobid_update', ({ playerId, playerName }) => {
+  if (gs) gs.autoBidPlayerId = playerId;
   renderPlayersBar();
   // Locker already saw the flyby from their own click — only show for others
   const isMe = PS.some(ps => ps?.id === playerId);
