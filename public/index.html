@@ -128,6 +128,12 @@
   <!-- Toast container -->
   <div id="toast-container"></div>
 
+  <!-- Lock flyby notification -->
+  <div id="lock-flyby" class="hidden">
+    <span id="lock-flyby-icon">🔓</span>
+    <span id="lock-flyby-text"></span>
+  </div>
+
   <!-- ═══════════════════════════════════════ -->
   <!-- SCREEN: Landing                          -->
   <!-- ═══════════════════════════════════════ -->
@@ -292,29 +298,32 @@
         </div>
       </div>
 
-      <!-- Autoliar — visible when not your turn -->
-      <div id="autoliar-section" class="hidden">
-        <button id="btn-autoliar" class="btn btn-autoliar">🔒 Lock in Autoliar</button>
-      </div>
-
-      <!-- Lock Bid — pre-select a bid before your turn -->
-      <div id="lockbid-section" class="hidden">
-        <div id="lockbid-input">
-          <div id="lockbid-controls">
-            <div class="qty-control">
-              <button id="lb-qty-up" class="btn-stepper">+</button>
-              <span id="lb-qty-val">1</span>
-              <button id="lb-qty-down" class="btn-stepper">−</button>
-            </div>
-            <div id="lb-face-picker"><!-- populated by JS --></div>
+      <!-- Pre-turn actions: Lock Autobid + Lock Autoliar, side by side -->
+      <div id="preturn-row">
+        <div id="lockbid-section" class="hidden">
+          <div id="lockbid-btn-area">
+            <button id="btn-lock-bid" class="btn btn-lockbid">🔒 Lock Autobid</button>
           </div>
-          <div id="lb-hint-msg"></div>
-          <button id="btn-lock-bid" class="btn btn-lockbid">🔒 Lock Bid</button>
+          <div id="lockbid-locked" class="hidden">
+            <span id="lockbid-locked-label"></span>
+          </div>
         </div>
-        <div id="lockbid-locked" class="hidden">
-          <span id="lockbid-locked-label"></span>
-          <button id="btn-unlock-bid" class="btn btn-sm">✕ Unlock</button>
+        <div id="autoliar-section" class="hidden">
+          <button id="btn-autoliar" class="btn btn-autoliar">🔒 Lock Autoliar</button>
         </div>
+      </div>
+      <!-- Lockbid controls panel — expands when Lock Autobid is clicked -->
+      <div id="lockbid-controls-panel" class="hidden">
+        <div id="lockbid-controls">
+          <div class="qty-control">
+            <button id="lb-qty-up" class="btn-stepper">+</button>
+            <span id="lb-qty-val">1</span>
+            <button id="lb-qty-down" class="btn-stepper">−</button>
+          </div>
+          <div id="lb-face-picker"><!-- populated by JS --></div>
+        </div>
+        <div id="lb-hint-msg"></div>
+        <button id="btn-confirm-lock-bid" class="btn btn-lockbid">Confirm Lock</button>
       </div>
 
       <!-- Reactions — available to all living players during gameplay -->
@@ -380,7 +389,7 @@
     <div id="ip-confirm-overlay" class="hidden">
       <div class="ip-panel">
         <h3 class="ip-panel-title" id="ip-confirm-title"></h3>
-        <p class="ip-subtitle">Did they bid this?</p>
+        <p class="ip-subtitle">Did you bid this?</p>
         <div class="ip-bid-row">
           <div class="control-group">
             <label>Quantity</label>

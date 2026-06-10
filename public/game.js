@@ -270,6 +270,7 @@ socket1.on('rejoined', ({ sessionToken, roomId, state, dice, phase }) => {
     if (phase === 'playing') hideEl('reveal-overlay');
     showScreen('screen-game');
     renderGame();
+    if (gs?.isInPerson && PS[0].dice.length > 0) dealMyDice();
   }
   toast('Reconnected!', 'ok');
 });
@@ -303,7 +304,7 @@ function renderLobby(state) {
   document.getElementById('lobby-players').innerHTML = state.players.map((pl, idx) => {
     const isHost  = pl.id === state.host;
     const isMe    = pl.id === pid();
-    const canKick = iAmLobbyHost && !pl.connected && !isMe;
+    const canKick = iAmLobbyHost && !pl.connected && !isMe && !dualMode;
     return `<div class="lobby-player${isHost ? ' is-host' : ''}${!pl.connected ? ' disconnected' : ''}"
                data-id="${esc(pl.id)}" data-idx="${idx}" ${iAmLobbyHost ? 'draggable="true"' : ''}>
       ${iAmLobbyHost ? '<span class="drag-handle">⠿</span>' : ''}
@@ -645,28 +646,28 @@ function refreshLockBidControls() {
   }
   const v = gs ? clientValidate(gs, lbQty, gs.isFaceoff ? 0 : lbFace) : { ok: false, why: '' };
   document.getElementById('lb-hint-msg').textContent = v.ok ? '' : v.why;
-  document.getElementById('btn-lock-bid').disabled = !v.ok;
+  document.getElementById('btn-confirm-lock-bid').disabled = !v.ok;
 }
 
 function renderLockBidSection() {
   if (!gs || gs.isInPerson || gs.phase !== 'playing' || gs.currentPlayerId === pid()) {
     hideEl('lockbid-section');
+    hideEl('lockbid-controls-panel');
     return;
   }
   showEl('lockbid-section');
   const locked = p()?.lockedBid;
   if (locked) {
-    hideEl('lockbid-input');
+    hideEl('lockbid-btn-area');
+    hideEl('lockbid-controls-panel');
     showEl('lockbid-locked');
     const label = locked.face
       ? `🔒 ${locked.quantity} × ${makeDie(locked.face, 'tiny')}`
       : `🔒 Sum: ${locked.quantity}`;
     document.getElementById('lockbid-locked-label').innerHTML = label;
   } else {
-    showEl('lockbid-input');
+    showEl('lockbid-btn-area');
     hideEl('lockbid-locked');
-    gs.isFaceoff ? hideEl('lb-face-picker') : showEl('lb-face-picker');
-    refreshLockBidControls();
   }
 }
 
@@ -675,19 +676,36 @@ document.getElementById('lb-qty-up').addEventListener('click',   () => { lbQty =
 
 document.getElementById('btn-lock-bid').addEventListener('click', () => {
   if (!gs) return;
+  gs.isFaceoff ? hideEl('lb-face-picker') : showEl('lb-face-picker');
+  refreshLockBidControls();
+  showEl('lockbid-controls-panel');
+});
+
+document.getElementById('btn-confirm-lock-bid').addEventListener('click', () => {
+  if (!gs) return;
   const face = gs.isFaceoff ? null : lbFace;
   const v = clientValidate(gs, lbQty, gs.isFaceoff ? 0 : lbFace);
   if (!v.ok) return;
-  const label = face ? `${lbQty} × ${FACE_NAME[face]}` : `sum ${lbQty}`;
-  if (!confirm(`Lock in bid: ${label}?`)) return;
   p().lockedBid = { quantity: lbQty, face };
   renderLockBidSection();
+  const label = face ? `Autobid: ${lbQty} × ${FACE_NAME[face]}` : `Autobid: sum ${lbQty}`;
+  showLockFlyby(label);
 });
 
-document.getElementById('btn-unlock-bid').addEventListener('click', () => {
-  p().lockedBid = null;
-  renderLockBidSection();
-});
+let flybyTimer = null;
+function showLockFlyby(text) {
+  const el   = document.getElementById('lock-flyby');
+  const icon = document.getElementById('lock-flyby-icon');
+  const lbl  = document.getElementById('lock-flyby-text');
+  if (flybyTimer) { clearTimeout(flybyTimer); flybyTimer = null; }
+  icon.textContent = '🔓';
+  lbl.textContent  = text;
+  el.classList.remove('hidden', 'flyby-run');
+  void el.offsetWidth;
+  el.classList.add('flyby-run');
+  flybyTimer = setTimeout(() => { icon.textContent = '🔒'; }, 600);
+  setTimeout(() => { el.classList.add('hidden'); el.classList.remove('flyby-run'); }, 3200);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // In-person mode
@@ -779,7 +797,7 @@ function showIPConfirmOverlay({ challengerName, qty, face }, socket) {
   ipConfQty      = qty;
   ipConfFace     = face ?? 2;
   ipConfirmSocket = socket ?? null;
-  document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar!`;
+  document.getElementById('ip-confirm-title').textContent = `${challengerName} called Liar on your bid`;
   document.getElementById('ip-conf-qty-val').textContent  = ipConfQty;
   const isFaceoff = face === null;
   isFaceoff ? hideEl('ip-conf-face-group') : showEl('ip-conf-face-group');
@@ -884,17 +902,20 @@ function renderPlayersBar() {
   const sorted = myIdx < 1
     ? gs.players
     : [...gs.players.slice(myIdx), ...gs.players.slice(0, myIdx)];
-  const perRow = Math.min(sorted.length, 6);
   const bar = document.getElementById('players-bar');
-  bar.style.setProperty('--chip-w', `calc((100% - ${(perRow - 1) * 5}px) / ${perRow})`);
   bar.innerHTML = sorted.map(pl => {
-    const active   = pl.id === gs.currentPlayerId;
-    const me       = pl.id === myId;
-    const canKick  = iAmHost && !pl.connected && !me;
-    const dice     = pl.diceCount ? `${pl.diceCount}×🎲` : '—';
+    const active      = pl.id === gs.currentPlayerId;
+    const me          = pl.id === myId;
+    const canKick     = iAmHost && !pl.connected && !me && !dualMode;
+    const dice        = pl.diceCount ? `${pl.diceCount}×🎲` : '—';
+    const hasAutoliar = pl.id === gs.autoLiarPlayerId;
+    const psLocal     = PS.find(ps => ps?.id === pl.id);
+    const hasAutobid  = !!(psLocal?.lockedBid);
+    const locks = (hasAutobid ? '<span class="chip-lock chip-lock-bid">AB</span>' : '')
+                + (hasAutoliar ? '<span class="chip-lock chip-lock-liar">AL</span>' : '');
     return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!pl.connected ? ' disconnected' : ''}" data-id="${esc(pl.id)}">
       <div class="chip-name" title="${esc(pl.name)}">${esc(pl.name)}${me ? ' ★' : ''}</div>
-      <div class="chip-dice">${dice}</div>
+      <div class="chip-dice">${dice}${locks ? `<span class="chip-locks">${locks}</span>` : ''}</div>
       ${canKick ? `<button class="btn-kick" data-id="${esc(pl.id)}">Kick</button>` : ''}
     </div>`;
   }).join('');
@@ -1016,8 +1037,12 @@ function randomTumble() {
 
 function renderMyDice() {
   dealGeneration++;
-  document.getElementById('my-dice').innerHTML =
-    [...pdice()].sort((a, b) => a - b).map(d => make3DDie(d)).join('');
+  const container = document.getElementById('my-dice');
+  const wasCluster = container.classList.contains('ip-cluster');
+  container.innerHTML = [...pdice()].sort((a, b) => a - b).map(d => make3DDie(d)).join('');
+  if (wasCluster) {
+    positionIPDice(container, [...container.querySelectorAll('.die3-wrap')]);
+  }
 }
 
 function dealMyDice() {
@@ -1095,7 +1120,7 @@ function renderAutoLiarBtn() {
       btn.classList.add('autoliar-locked');
       btn.disabled = true;
     } else {
-      btn.textContent = '🔒 Lock in Autoliar';
+      btn.textContent = '🔒 Lock Autoliar';
       btn.classList.remove('autoliar-locked');
       btn.disabled = false;
     }
@@ -1207,6 +1232,7 @@ document.getElementById('players-bar').addEventListener('click', e => {
 document.getElementById('btn-autoliar').addEventListener('click', () => {
   if (!confirm('Lock in Autoliar? You will automatically call liar on the next bid.')) return;
   p().socket.emit('auto_liar');
+  showLockFlyby('Autoliar Locked');
 });
 
 document.getElementById('btn-react-fire').addEventListener('click', () => {
