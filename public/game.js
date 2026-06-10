@@ -693,6 +693,39 @@ document.getElementById('btn-confirm-lock-bid').addEventListener('click', () => 
   showLockFlyby(label);
 });
 
+function fireAutobidWithDelay(ps, lb) {
+  const faceArg = gs.isFaceoff ? 0 : (lb.face ?? 0);
+  const v = clientValidate(gs, lb.quantity, faceArg);
+  if (!v.ok) {
+    toast('Locked autobid no longer valid — bid manually', 'warn');
+    renderLockBidSection();
+    renderPlayersBar();
+    return;
+  }
+
+  const overlay = document.getElementById('autobid-fire-overlay');
+  const bidEl   = document.getElementById('autobid-fire-bid');
+  const fill    = document.getElementById('autobid-fire-fill');
+
+  bidEl.innerHTML = lb.face
+    ? `${lb.quantity} × ${makeDie(lb.face, 'small')}`
+    : `Sum: ${lb.quantity}`;
+
+  fill.classList.remove('running');
+  void fill.offsetWidth;
+  showEl(overlay);
+  fill.classList.add('running');
+
+  setTimeout(() => {
+    hideEl(overlay);
+    ps.socket.emit('make_bid', { quantity: lb.quantity, face: faceArg });
+    const label = lb.face ? `${lb.quantity} ${FACE_NAME[lb.face]}` : `sum ${lb.quantity}`;
+    toast(`Auto-bid: ${label}`, 'ok');
+    renderLockBidSection();
+    renderPlayersBar();
+  }, 1600);
+}
+
 let flybyTimer = null;
 function showLockFlyby(text) {
   const el   = document.getElementById('lock-flyby');
@@ -1326,17 +1359,7 @@ socket1.on('bid_made', ({ bid, bidderName, gameState: state }) => {
     if (!ps || ps.id !== gs.currentPlayerId || !ps.lockedBid) return;
     const lb = ps.lockedBid;
     ps.lockedBid = null;
-    const faceArg = gs.isFaceoff ? 0 : (lb.face ?? 0);
-    const v = clientValidate(gs, lb.quantity, faceArg);
-    if (v.ok) {
-      ps.socket.emit('make_bid', { quantity: lb.quantity, face: faceArg });
-      const label = lb.face ? `${lb.quantity} ${FACE_NAME[lb.face]}` : `sum ${lb.quantity}`;
-      toast(`Auto-bid: ${label}`, 'ok');
-    } else {
-      toast('Locked autobid no longer valid — bid manually', 'warn');
-    }
-    renderLockBidSection();
-    renderPlayersBar();
+    fireAutobidWithDelay(ps, lb);
   });
 });
 

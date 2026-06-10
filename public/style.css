@@ -575,6 +575,44 @@ body.dual-mode .player-chip { cursor: pointer; }
   100% { transform: scale(1.08);               opacity: 0; }
 }
 
+/* ── Autobid fire overlay ────────────────────────────────────────────── */
+#autobid-fire-overlay {
+  position: fixed; top: 28%; left: 50%; transform: translateX(-50%);
+  background: rgba(13,13,26,.93); border: 1px solid rgba(34,197,94,.4);
+  border-radius: 18px; padding: 18px 40px;
+  display: flex; flex-direction: column; align-items: center;
+  z-index: 85; pointer-events: none; white-space: nowrap;
+}
+#autobid-fire-text {
+  font-size: 2.2rem; font-weight: 900; color: #4ade80; line-height: 1;
+  letter-spacing: 3px;
+  text-shadow: 0 0 28px rgba(34,197,94,.85), 0 0 60px rgba(34,197,94,.35);
+  animation: autobidFirePop 0.45s ease forwards;
+}
+#autobid-fire-bid {
+  font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 8px;
+  opacity: 0; animation: fadeInUp .3s .2s ease forwards;
+  display: flex; align-items: center; gap: 6px;
+}
+#autobid-fire-bar {
+  width: 100%; height: 4px; background: rgba(34,197,94,.18);
+  border-radius: 2px; margin-top: 14px; overflow: hidden;
+}
+#autobid-fire-fill {
+  height: 100%; width: 0; background: #4ade80; border-radius: 2px;
+}
+#autobid-fire-fill.running { animation: autobidFill 1.4s linear forwards; }
+@keyframes autobidFirePop {
+  0%   { transform: scale(0.25) rotate(-6deg); opacity: 0; }
+  50%  { transform: scale(1.12) rotate(2deg);  opacity: 1; }
+  75%  { transform: scale(0.97);               opacity: 1; }
+  100% { transform: scale(1);                  opacity: 1; }
+}
+@keyframes autobidFill {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
 /* ── Palifico Overlay ────────────────────────────────────────────────── */
 #palifico-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.88);
