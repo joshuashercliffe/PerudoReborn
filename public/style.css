@@ -880,12 +880,12 @@ body.dual-mode .player-chip { cursor: pointer; }
 }
 .btn-ip-liar:hover { background: rgba(239,68,68,.28); }
 
-#ip-liar-overlay, #ip-confirm-overlay {
+#ip-liar-overlay, #ip-confirm-overlay, #autoliar-confirm-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.82);
   display: flex; align-items: center; justify-content: center;
   z-index: 60; padding: 20px; animation: fadeIn .2s ease;
 }
-#ip-liar-overlay.hidden, #ip-confirm-overlay.hidden { display: none; }
+#ip-liar-overlay.hidden, #ip-confirm-overlay.hidden, #autoliar-confirm-overlay.hidden { display: none; }
 .ip-panel {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 28px 24px;
