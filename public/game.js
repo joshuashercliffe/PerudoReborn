@@ -1320,21 +1320,23 @@ socket1.on('bid_made', ({ bid, bidderName, gameState: state }) => {
     }
   }
 
-  // Auto-fire locked bid if it's now my turn
-  if (gs.currentPlayerId === pid() && p()?.lockedBid) {
-    const lb = p().lockedBid;
-    p().lockedBid = null;
+  // Auto-fire locked bid for any local player whose turn just arrived
+  PS.forEach(ps => {
+    if (!ps || ps.id !== gs.currentPlayerId || !ps.lockedBid) return;
+    const lb = ps.lockedBid;
+    ps.lockedBid = null;
     const faceArg = gs.isFaceoff ? 0 : (lb.face ?? 0);
     const v = clientValidate(gs, lb.quantity, faceArg);
     if (v.ok) {
-      p().socket.emit('make_bid', { quantity: lb.quantity, face: faceArg });
+      ps.socket.emit('make_bid', { quantity: lb.quantity, face: faceArg });
       const label = lb.face ? `${lb.quantity} ${FACE_NAME[lb.face]}` : `sum ${lb.quantity}`;
       toast(`Auto-bid: ${label}`, 'ok');
     } else {
-      toast('Locked bid no longer valid — bid manually', 'warn');
-      renderLockBidSection();
+      toast('Locked autobid no longer valid — bid manually', 'warn');
     }
-  }
+    renderLockBidSection();
+    renderPlayersBar();
+  });
 });
 
 socket1.on('bid_error', ({ message }) => toast(message, 'error'));
