@@ -207,9 +207,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   padding: 8px 10px; text-align: center; min-width: 80px; max-width: 100px;
   transition: border-color .2s, box-shadow .2s;
 }
-.player-chip.is-active { border-color: var(--accent); box-shadow: 0 0 16px var(--accent-glow); }
-.player-chip.is-me { border-color: var(--gold); }
-.player-chip.is-active.is-me { border-color: var(--accent); }
+.player-chip.is-active { border-color: var(--gold); box-shadow: 0 0 16px var(--gold-glow); }
 .player-chip.disconnected { opacity: .45; }
 body.dual-mode .player-chip { cursor: pointer; }
 .chip-name { font-size: .82rem; font-weight: 700; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
