@@ -869,6 +869,7 @@ socket1.on('round_start', state => {
   diceRevealed = false;
   ipChallengePending = false;
   hideEl('ip-confirm-overlay');
+  hideEl('reveal-overlay');
   bidHistory = [];
   showScreen('screen-game');
   renderGame();
@@ -1429,13 +1430,22 @@ socket1.on('challenge_result', result => {
 });
 
 socket1.on('reveal_resolved', () => {
+  if (gs?.isInPerson) {
+    // In-person: start the next round immediately in the background;
+    // the reveal overlay stays visible until round_start dismisses it.
+    PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
+    document.getElementById('btn-next-round').textContent = 'Continue';
+  }
   showEl('btn-next-round');
 });
 
 document.getElementById('btn-next-round').addEventListener('click', () => {
   hideEl('reveal-overlay');
-  // Send for every local socket so dual-player mode satisfies allReady
-  PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
+  // Online mode: gate the round start on this click.
+  // In-person mode: next_round was already sent above; this just closes the overlay.
+  if (!gs?.isInPerson) {
+    PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
+  }
 });
 
 function showReveal(r) {
@@ -1535,6 +1545,7 @@ function showReveal(r) {
     <div class="reveal-outcome ${bidMet ? 'lose' : 'win'}">${outcomeText}</div>
     <div class="reveal-loser-line">${loserLine}</div>`;
 
+  document.getElementById('btn-next-round').textContent = 'Next Round →';
   hideEl('btn-next-round');
   showEl('reveal-overlay');
 }
