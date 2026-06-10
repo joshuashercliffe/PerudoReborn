@@ -337,6 +337,11 @@ function renderLobby(state) {
   ipBtn.classList.toggle('active', !!state.isInPerson);
   ipBtn.disabled = !iAmLobbyHost;
 
+  const calzaBtn = document.getElementById('btn-calza');
+  calzaBtn.dataset.active = state.calzaEnabled ? 'true' : 'false';
+  calzaBtn.classList.toggle('active', !!state.calzaEnabled);
+  calzaBtn.disabled = !iAmLobbyHost;
+
   iAmLobbyHost ? hideEl('host-only-hint') : showEl('host-only-hint');
 
   const startBtn = document.getElementById('btn-start');
@@ -387,6 +392,11 @@ document.getElementById('btn-variable').addEventListener('click', function() {
 document.getElementById('btn-inperson').addEventListener('click', function() {
   const newVal = this.dataset.active !== 'true';
   p().socket.emit('set_inperson', { value: newVal });
+});
+
+document.getElementById('btn-calza').addEventListener('click', function() {
+  const newVal = this.dataset.active !== 'true';
+  p().socket.emit('set_calza', { value: newVal });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1037,6 +1047,13 @@ function renderBidHistory() {
         <span class="bhe-liar">LIAR!</span>
       </div>`;
     }
+    if (e.type === 'calza') {
+      return `<div class="bid-history-entry">
+        <span class="bhe-name">${esc(e.name)}</span>
+        <span class="bhe-arrow">→</span>
+        <span class="bhe-calza">🎯 CALZA</span>
+      </div>`;
+    }
     if (e.face === null) {
       return `<div class="bid-history-entry">
         <span class="bhe-name">${esc(e.name)}</span>
@@ -1186,6 +1203,7 @@ function renderActionUI() {
 
   showEl('action-ui');
   gs.isPalifico && !gs.isFaceoff ? showEl('palifico-notice') : hideEl('palifico-notice');
+  gs.calzaEnabled ? showEl('btn-calza-action') : hideEl('btn-calza-action');
 
   if (gs.isFaceoff) {
     document.getElementById('qty-label').textContent = 'Bid Sum';
@@ -1219,6 +1237,7 @@ function refreshBidControls() {
     document.getElementById('bid-hint-msg').textContent = v.ok ? '' : v.why;
     document.getElementById('btn-bid').disabled = !v.ok;
     document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
+    document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound;
     return;
   }
 
@@ -1239,6 +1258,7 @@ function refreshBidControls() {
   document.getElementById('bid-hint-msg').textContent = v.ok ? '' : v.why;
   document.getElementById('btn-bid').disabled = !v.ok;
   document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
+  document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound;
 }
 
 document.getElementById('btn-bid').addEventListener('click', () => {
@@ -1247,6 +1267,10 @@ document.getElementById('btn-bid').addEventListener('click', () => {
 
 document.getElementById('btn-challenge').addEventListener('click', () => {
   p().socket.emit('challenge');
+});
+
+document.getElementById('btn-calza-action').addEventListener('click', () => {
+  p().socket.emit('calza');
 });
 
 document.getElementById('players-bar').addEventListener('click', e => {
@@ -1397,6 +1421,24 @@ socket1.on('liar_called', ({ challengerName, isPeak }) => {
   setTimeout(() => hideEl(overlay), 1800);
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CALZA called
+// ─────────────────────────────────────────────────────────────────────────────
+socket1.on('calza_called', ({ callerName }) => {
+  ipChallengePending = false;
+  hideEl('ip-confirm-overlay');
+  bidHistory.push({ type: 'calza', name: callerName });
+
+  const overlay = document.getElementById('calza-overlay');
+  document.getElementById('calza-caller').textContent = `${callerName} calls it exact!`;
+  const calzaText = document.getElementById('calza-text');
+  calzaText.style.animation = 'none';
+  void calzaText.offsetWidth;
+  calzaText.style.animation = '';
+  showEl(overlay);
+  setTimeout(() => hideEl(overlay), 1800);
+});
+
 let peakOverlayActive = false;
 let pendingChallengeResult = null;
 
@@ -1428,6 +1470,7 @@ function showPeakOverlay(challengerName) {
 socket1.on('challenge_result', result => {
   hideEl('action-ui');
   hideEl('liar-overlay');
+  hideEl('calza-overlay');
   hideEl('woah-overlay');
   if (peakOverlayActive) {
     pendingChallengeResult = result;
@@ -1450,7 +1493,7 @@ document.getElementById('btn-next-round').addEventListener('click', () => {
 });
 
 function showReveal(r) {
-  const { revealedDice, bid, count, bidMet, isPeak, diceDelta, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName } = r;
+  const { revealedDice, bid, count, bidMet, isPeak, diceDelta, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName, calza, exact, callerName } = r;
 
   let playersRowHtml, bottomRowHtml;
 
@@ -1496,43 +1539,67 @@ function showReveal(r) {
       </div>`;
   }
 
-  const loserQuips = isFaceoff ? [
-    `💀 ${esc(loserName)} lost the ultimate 1v1 showdown`,
-    `💀 ${esc(loserName)} miscounted in the final moment`,
-    `💀 ${esc(loserName)} failed their arithmetic exam`,
-    `💀 ${esc(loserName)} went down swinging in the faceoff`,
-    `💀 ${esc(loserName)} couldn't survive the duel`,
-  ] : gameMode === 'reverse' ? [
-    `📈 ${esc(loserName)} is collecting dice like they cost nothing`,
-    `📦 ${esc(loserName)} added to their growing problem`,
-    `🎲 ${esc(loserName)} has too many dice and not enough skill`,
-    `🚨 ${esc(loserName)} is getting dangerously overstocked`,
-    `🔢 ${esc(loserName)} raised the quick maths the wrong way`,
-  ] : [
-    `💀 ${esc(loserName)} angered the dice gods and paid the tax`,
-    `💀 ${esc(loserName)} just lowered quick maths`,
-    `💀 ${esc(loserName)} got audited by RNGesus`,
-    `💀 ${esc(loserName)} experienced a critical skill issue`,
-    `💀 ${esc(loserName)} is on their way straight home`,
-    `💀 ${esc(loserName)} lost a die to budget cuts`,
-  ];
-  const loserLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
+  let outcomeClass, outcomeText, flavorLine;
 
-  const diceWord = (diceDelta ?? 1) === 1 ? 'die' : 'dice';
-  const diceLossText = gameMode === 'reverse'
-    ? ` — gains ${diceDelta ?? 1} ${diceWord}`
-    : ` — loses ${diceDelta ?? 1} ${diceWord}`;
-  const outcomeText = isFaceoff
-    ? (bidMet
-        ? `✗ Call unsuccessful — sum is ${count} ≥ ${bid.quantity}, <strong>${esc(challengerName)}</strong> loses`
-        : `✓ Call successful — sum is ${count}, bid was ${bid.quantity}, <strong>${esc(bidderName)}</strong> loses`)
-    : (bidMet
-        ? `✗ Call unsuccessful — <strong>${esc(challengerName)}</strong>${diceLossText}`
-        : `✓ Call successful — <strong>${esc(bidderName)}</strong>${diceLossText}`);
+  if (calza) {
+    const gainWord = gameMode === 'reverse' ? 'sheds a die' : 'wins a die back';
+    const lossWord = gameMode === 'reverse' ? 'gains a die' : 'loses a die';
+    outcomeClass = exact ? 'win' : 'lose';
+    outcomeText = exact
+      ? `✓ CALZA! Exactly ${count} — <strong>${esc(callerName)}</strong> ${gainWord}`
+      : `✗ Not exact — there were ${count}, bid was ${bid.quantity} — <strong>${esc(callerName)}</strong> ${lossWord}`;
+    const calzaQuips = exact ? [
+      `🎯 ${esc(callerName)} called the bluff's bluff`,
+      `🎯 ${esc(callerName)} has ice in their veins`,
+      `🎯 ${esc(callerName)} read the table like a book`,
+      `🎯 ${esc(callerName)} nailed it to the decimal`,
+    ] : [
+      `😬 ${esc(callerName)} gambled on precision and missed`,
+      `😬 ${esc(callerName)} learned that close doesn't count`,
+      `😬 ${esc(callerName)} overestimated their psychic powers`,
+      `😬 ${esc(callerName)} should've just called Liar`,
+    ];
+    flavorLine = calzaQuips[Math.floor(Math.random() * calzaQuips.length)];
+  } else {
+    const loserQuips = isFaceoff ? [
+      `💀 ${esc(loserName)} lost the ultimate 1v1 showdown`,
+      `💀 ${esc(loserName)} miscounted in the final moment`,
+      `💀 ${esc(loserName)} failed their arithmetic exam`,
+      `💀 ${esc(loserName)} went down swinging in the faceoff`,
+      `💀 ${esc(loserName)} couldn't survive the duel`,
+    ] : gameMode === 'reverse' ? [
+      `📈 ${esc(loserName)} is collecting dice like they cost nothing`,
+      `📦 ${esc(loserName)} added to their growing problem`,
+      `🎲 ${esc(loserName)} has too many dice and not enough skill`,
+      `🚨 ${esc(loserName)} is getting dangerously overstocked`,
+      `🔢 ${esc(loserName)} raised the quick maths the wrong way`,
+    ] : [
+      `💀 ${esc(loserName)} angered the dice gods and paid the tax`,
+      `💀 ${esc(loserName)} just lowered quick maths`,
+      `💀 ${esc(loserName)} got audited by RNGesus`,
+      `💀 ${esc(loserName)} experienced a critical skill issue`,
+      `💀 ${esc(loserName)} is on their way straight home`,
+      `💀 ${esc(loserName)} lost a die to budget cuts`,
+    ];
+    flavorLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
+
+    const diceWord = (diceDelta ?? 1) === 1 ? 'die' : 'dice';
+    const diceLossText = gameMode === 'reverse'
+      ? ` — gains ${diceDelta ?? 1} ${diceWord}`
+      : ` — loses ${diceDelta ?? 1} ${diceWord}`;
+    outcomeClass = bidMet ? 'lose' : 'win';
+    outcomeText = isFaceoff
+      ? (bidMet
+          ? `✗ Call unsuccessful — sum is ${count} ≥ ${bid.quantity}, <strong>${esc(challengerName)}</strong> loses`
+          : `✓ Call successful — sum is ${count}, bid was ${bid.quantity}, <strong>${esc(bidderName)}</strong> loses`)
+      : (bidMet
+          ? `✗ Call unsuccessful — <strong>${esc(challengerName)}</strong>${diceLossText}`
+          : `✓ Call successful — <strong>${esc(bidderName)}</strong>${diceLossText}`);
+  }
 
   const countLine = isFaceoff ? '' :
     `<div class="reveal-count-line">There were actually <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>`;
-  const peakLine = (!isFaceoff && isPeak)
+  const peakLine = (!calza && !isFaceoff && isPeak)
     ? `<div class="reveal-count-line">The peak was <strong>${bid.quantity}</strong> ${FACE_NAME[bid.face]}</div>`
     : '';
 
@@ -1543,8 +1610,8 @@ function showReveal(r) {
     ${bottomRowHtml}`;
 
   document.getElementById('reveal-summary').innerHTML = `
-    <div class="reveal-outcome ${bidMet ? 'lose' : 'win'}">${outcomeText}</div>
-    <div class="reveal-loser-line">${loserLine}</div>`;
+    <div class="reveal-outcome ${outcomeClass}">${outcomeText}</div>
+    <div class="reveal-loser-line">${flavorLine}</div>`;
 
   document.getElementById('btn-next-round').textContent = 'Next Round →';
   hideEl('btn-next-round');

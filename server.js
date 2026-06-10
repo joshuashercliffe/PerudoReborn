@@ -72,6 +72,7 @@ function createRoomState() {
     gameMode: 'standard',
     isVariable: false,
     isInPerson: false,
+    calzaEnabled: false,
     nextRoundReady: [],
     pendingIPChallenge: null,
     players: [],
@@ -121,6 +122,7 @@ function publicState(room) {
     gameMode:           room.gameMode,
     isVariable:         room.isVariable,
     isInPerson:         room.isInPerson,
+    calzaEnabled:       room.calzaEnabled,
     autoLiarPlayerId:   room.autoLiarPlayerId,
     autoBidPlayerId:    room.autoBidPlayerId
   };
@@ -288,6 +290,25 @@ function startRound(room, roomId) {
 // Challenge processing
 // ─────────────────────────────────────────
 
+// Tally the matching dice for a bid (face matches + 1s as wild unless Palifico;
+// Faceoff totals the dice sum). Returns the per-player reveal payload and count.
+function tallyBid(room, bid) {
+  let count = 0;
+  const revealedDice = room.players.map(p => {
+    const pd = { id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0 };
+    if (room.isFaceoff) {
+      count += p.dice.reduce((s, d) => s + d, 0);
+    } else {
+      p.dice.forEach(d => {
+        if (room.isPalifico) { if (d === bid.face) count++; }
+        else                 { if (d === bid.face || d === 1) count++; }
+      });
+    }
+    return pd;
+  });
+  return { revealedDice, count };
+}
+
 function processChallenge(challenger, room, roomId) {
   const bidder = room.players[room.lastBidderIndex];
   if (!bidder) return;
@@ -300,19 +321,7 @@ function processChallenge(challenger, room, roomId) {
   io.to(roomId).emit('liar_called', { challengerName: challenger.name, isPeak });
 
   const bid = room.currentBid;
-  let count = 0;
-  const revealedDice = room.players.map(p => {
-    const pd = { id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0 };
-    if (room.isFaceoff) {
-      count += p.dice.reduce((s, d) => s + d, 0);
-    } else {
-      p.dice.forEach(d => {
-        if (room.isPalifico) { if (d === bid.face) count++; }
-        else                  { if (d === bid.face || d === 1) count++; }
-      });
-    }
-    return pd;
-  });
+  const { revealedDice, count } = tallyBid(room, bid);
 
   const bidMet   = count >= bid.quantity;
   const loser    = bidMet ? challenger : bidder;
@@ -391,6 +400,82 @@ function processChallenge(challenger, room, roomId) {
           loserPlayer.dice = loserPlayer.dice.slice(0, loserPlayer.diceCount);
           room.currentPlayerIndex = loserIdx;
           if (loserPlayer.diceCount === 1) room.palificoTriggerPlayer = loserPlayer.id;
+        }
+      }
+
+      room.roundNumber++;
+      room.revealResolved = true;
+      io.to(roomId).emit('reveal_resolved');
+    }, 4500);
+  }, 1200);
+}
+
+// Calza (exact call): the current player bets the bid count is exactly right.
+// Correct → caller wins a die back; wrong → caller loses one. Caller starts next round.
+function processCalza(caller, room, roomId) {
+  if (!room.currentBid) return;
+  room.phase = 'reveal';
+
+  const bid = room.currentBid;
+  const { revealedDice, count } = tallyBid(room, bid);
+  const exact = count === bid.quantity;
+
+  io.to(roomId).emit('calza_called', { callerName: caller.name });
+
+  const result = {
+    calza: true, exact,
+    revealedDice, bid, count, diceDelta: 1,
+    isPalifico: room.isPalifico,
+    isFaceoff:  room.isFaceoff,
+    gameMode:   room.gameMode,
+    callerName: caller.name,
+    callerId:   caller.id
+  };
+
+  setTimeout(() => {
+    io.to(roomId).emit('challenge_result', result);
+
+    setTimeout(() => {
+      const callerIdx = room.players.findIndex(p => p.id === caller.id);
+      if (callerIdx === -1) {
+        if (room.phase !== 'over') {
+          room.roundNumber++;
+          room.revealResolved = true;
+          io.to(roomId).emit('reveal_resolved');
+        }
+        return;
+      }
+
+      const cp      = room.players[callerIdx];
+      const reverse = room.gameMode === 'reverse';
+
+      // exact → reward (good); wrong → penalty (bad). Direction flips in reverse mode.
+      if (exact) {
+        cp.diceCount = reverse ? Math.max(1, cp.diceCount - 1) : Math.min(5, cp.diceCount + 1);
+        room.currentPlayerIndex = callerIdx;
+        if (!reverse && cp.diceCount === 1) room.palificoTriggerPlayer = cp.id;
+      } else {
+        cp.diceCount += reverse ? 1 : -1;
+        const eliminated = reverse ? cp.diceCount > 5 : cp.diceCount <= 0;
+
+        if (eliminated) {
+          cp.diceCount = 0;
+          cp.dice = [];
+          if (room.autoLiarPlayerId === cp.id) room.autoLiarPlayerId = null;
+
+          io.to(roomId).emit('player_eliminated', { playerId: cp.id, playerName: cp.name });
+          room.players.splice(callerIdx, 1);
+
+          if (room.players.length === 1) {
+            room.phase = 'over';
+            io.to(roomId).emit('game_over', { winner: room.players[0].name });
+            return;
+          }
+          if (!reverse) room.palificoTriggerPlayer = null;
+          room.currentPlayerIndex = callerIdx % room.players.length;
+        } else {
+          room.currentPlayerIndex = callerIdx;
+          if (!reverse && cp.diceCount === 1) room.palificoTriggerPlayer = cp.id;
         }
       }
 
@@ -555,6 +640,16 @@ io.on('connection', socket => {
     io.to(roomId).emit('lobby_update', publicState(room));
   });
 
+  // ── Toggle Calza (exact call) ──────────
+  socket.on('set_calza', ({ value }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'lobby') return;
+    if (socket.id !== room.host) return;
+    room.calzaEnabled = !!value;
+    io.to(roomId).emit('lobby_update', publicState(room));
+  });
+
   // ── Reorder players (seating) ──────────
   socket.on('reorder_players', ({ order }) => {
     const ctx = getRoom(); if (!ctx) return;
@@ -676,6 +771,17 @@ io.on('connection', socket => {
     const challenger = room.players[room.currentPlayerIndex];
     if (!challenger || challenger.id !== socket.id) return;
     processChallenge(challenger, room, roomId);
+  });
+
+  // ── Calza (exact call) ────────────────
+  socket.on('calza', () => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'playing' || room.firstBidOfRound) return;
+    if (!room.calzaEnabled || room.isInPerson || !room.currentBid) return;
+    const caller = room.players[room.currentPlayerIndex];
+    if (!caller || caller.id !== socket.id) return;
+    processCalza(caller, room, roomId);
   });
 
   // ── Rage quit ─────────────────────────

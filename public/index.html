@@ -20,6 +20,12 @@
     <div id="liar-caller"></div>
   </div>
 
+  <!-- CALZA overlay -->
+  <div id="calza-overlay" class="hidden">
+    <div id="calza-text">CALZA!</div>
+    <div id="calza-caller"></div>
+  </div>
+
   <!-- Autoliar announcement overlay -->
   <div id="autoliar-overlay" class="hidden">
     <div id="autoliar-overlay-text">AUTOLIAR</div>
@@ -201,6 +207,7 @@
           <div class="settings-pills">
             <button id="btn-variable" class="setting-pill" data-active="false" title="Lose/gain dice equal to how wrong the bid was">📊 Variable</button>
             <button id="btn-inperson" class="setting-pill" data-active="false" title="Bidding done in person">🤝 In-person</button>
+            <button id="btn-calza" class="setting-pill" data-active="false" title="Call the count exactly right to win a die back">🎯 Calza</button>
           </div>
         </div>
         <p id="host-only-hint" class="muted-msg hidden settings-hint">Only the host can change settings</p>
@@ -301,6 +308,7 @@
         <div id="bid-hint-msg"></div>
         <div id="action-buttons">
           <button id="btn-challenge" class="btn btn-danger" disabled>Liar</button>
+          <button id="btn-calza-action" class="btn btn-calza hidden" disabled>🎯 Calza</button>
           <button id="btn-bid" class="btn btn-success" disabled>Make Bid</button>
         </div>
       </div>
