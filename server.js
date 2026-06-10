@@ -653,6 +653,16 @@ io.on('connection', socket => {
     io.to(roomId).emit('auto_liar_update', { playerId: socket.id, playerName: p.name, active: true });
   });
 
+  socket.on('lock_autobid', () => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'playing') return;
+    const p = room.players.find(pl => pl.id === socket.id);
+    if (!p) return;
+    if (room.players[room.currentPlayerIndex]?.id === socket.id) return;
+    io.to(roomId).emit('autobid_update', { playerId: socket.id, playerName: p.name });
+  });
+
   // ── Challenge (Liar) ──────────────────
   socket.on('challenge', () => {
     const ctx = getRoom(); if (!ctx) return;

@@ -687,6 +687,7 @@ document.getElementById('btn-confirm-lock-bid').addEventListener('click', () => 
   const v = clientValidate(gs, lbQty, gs.isFaceoff ? 0 : lbFace);
   if (!v.ok) return;
   p().lockedBid = { quantity: lbQty, face };
+  p().socket.emit('lock_autobid');
   renderLockBidSection();
   const label = face ? `Autobid: ${lbQty} × ${FACE_NAME[face]}` : `Autobid: sum ${lbQty}`;
   showLockFlyby(label);
@@ -1582,6 +1583,13 @@ socket1.on('auto_liar_update', ({ playerId, playerName }) => {
   }
   PS.slice(1).forEach((ps, i) => { if (ps?.id === playerId) { ps.autoLiar = true; if (activeIdx === i + 1) renderAutoLiarBtn(); } });
   showAutoLiarOverlay(playerName);
+});
+
+socket1.on('autobid_update', ({ playerId, playerName }) => {
+  renderPlayersBar();
+  // Locker already saw the flyby from their own click — only show for others
+  const isMe = PS.some(ps => ps?.id === playerId);
+  if (!isMe) showLockFlyby(`${playerName}: Autobid Locked`);
 });
 
 function showAutoLiarOverlay(playerName) {
