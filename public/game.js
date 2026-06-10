@@ -1602,11 +1602,13 @@ function animateElimination(name) {
 // Game over
 // ─────────────────────────────────────────────────────────────────────────────
 socket1.on('auto_liar_update', ({ playerId, playerName }) => {
+  if (gs) gs.autoLiarPlayerId = playerId;
   if (playerId === PS[0].id) {
     PS[0].autoLiar = true;
     if (activeIdx === 0) renderAutoLiarBtn();
   }
   PS.slice(1).forEach((ps, i) => { if (ps?.id === playerId) { ps.autoLiar = true; if (activeIdx === i + 1) renderAutoLiarBtn(); } });
+  renderPlayersBar();
   showAutoLiarOverlay(playerName);
 });
 
