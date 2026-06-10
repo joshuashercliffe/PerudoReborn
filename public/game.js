@@ -512,6 +512,7 @@ function switchPlayer(idx) {
   activeIdx = idx;
   hideEl('ip-confirm-overlay');
   hideEl('ip-liar-overlay');
+  hideEl('autoliar-confirm-overlay');
   updateToggleLabels();
   if (document.getElementById('screen-lobby').classList.contains('active') && gs) {
     renderLobby(gs);
@@ -869,6 +870,7 @@ socket1.on('round_start', state => {
   diceRevealed = false;
   ipChallengePending = false;
   hideEl('ip-confirm-overlay');
+  hideEl('autoliar-confirm-overlay');
   bidHistory = [];
   showScreen('screen-game');
   renderGame();
@@ -1263,7 +1265,15 @@ document.getElementById('players-bar').addEventListener('click', e => {
 });
 
 document.getElementById('btn-autoliar').addEventListener('click', () => {
-  if (!confirm('Lock in Autoliar? You will automatically call liar on the next bid.')) return;
+  showEl('autoliar-confirm-overlay');
+});
+
+document.getElementById('btn-autoliar-cancel').addEventListener('click', () => {
+  hideEl('autoliar-confirm-overlay');
+});
+
+document.getElementById('btn-autoliar-confirm').addEventListener('click', () => {
+  hideEl('autoliar-confirm-overlay');
   p().socket.emit('auto_liar');
   showLockFlyby('Autoliar Locked');
 });
