@@ -1430,22 +1430,15 @@ socket1.on('challenge_result', result => {
 });
 
 socket1.on('reveal_resolved', () => {
-  if (gs?.isInPerson) {
-    // In-person: start the next round immediately in the background;
-    // the reveal overlay stays visible until round_start dismisses it.
-    PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
-    document.getElementById('btn-next-round').textContent = 'Continue';
-  }
+  // Start the next round in the background immediately so it's ready when dismissed.
+  PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
+  document.getElementById('btn-next-round').textContent = 'Continue';
   showEl('btn-next-round');
 });
 
 document.getElementById('btn-next-round').addEventListener('click', () => {
   hideEl('reveal-overlay');
-  // Online mode: gate the round start on this click.
-  // In-person mode: next_round was already sent above; this just closes the overlay.
-  if (!gs?.isInPerson) {
-    PS.filter(ps => ps?.socket).forEach(ps => ps.socket.emit('next_round'));
-  }
+  // next_round already sent on reveal_resolved; button just closes the overlay.
 });
 
 function showReveal(r) {
