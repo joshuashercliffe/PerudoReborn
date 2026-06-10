@@ -869,7 +869,6 @@ socket1.on('round_start', state => {
   diceRevealed = false;
   ipChallengePending = false;
   hideEl('ip-confirm-overlay');
-  hideEl('reveal-overlay');
   bidHistory = [];
   showScreen('screen-game');
   renderGame();
