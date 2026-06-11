@@ -1273,11 +1273,13 @@ function renderRevealSelector() {
   if (!enabled) { hideEl('reveal-selector'); hideEl('btn-reveal-bid'); return; }
   const dice   = pdice();
   const locked = prevc();
-  document.getElementById('reveal-dice-row').innerHTML = dice.map((d, i) => {
-    if (i < locked) return `<div class="reveal-die-btn locked">${makeDie(d, 'tiny')}</div>`;
-    const sIdx = i - locked;
-    return `<button class="reveal-die-btn${revealSel.has(sIdx) ? ' selected' : ''}" data-sidx="${sIdx}">${makeDie(d, 'tiny')}</button>`;
-  }).join('');
+  // Sort each group by value for display; secret dice keep their original
+  // index (data-sidx) so the server still maps the reveal selection correctly.
+  const lockedHtml = dice.slice(0, locked).slice().sort((a, b) => a - b)
+    .map(d => `<div class="reveal-die-btn locked">${makeDie(d, 'tiny')}</div>`).join('');
+  const secretHtml = dice.slice(locked).map((v, sIdx) => ({ v, sIdx })).sort((a, b) => a.v - b.v)
+    .map(({ v, sIdx }) => `<button class="reveal-die-btn${revealSel.has(sIdx) ? ' selected' : ''}" data-sidx="${sIdx}">${makeDie(v, 'tiny')}</button>`).join('');
+  document.getElementById('reveal-dice-row').innerHTML = lockedHtml + secretHtml;
   showEl('reveal-selector');
   showEl('btn-reveal-bid');
 }
