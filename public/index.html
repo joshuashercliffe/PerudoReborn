@@ -208,6 +208,7 @@
             <button id="btn-variable" class="setting-pill" data-active="false" title="Lose/gain dice equal to how wrong the bid was">📊 Variable</button>
             <button id="btn-inperson" class="setting-pill" data-active="false" title="Bidding done in person">🤝 In-person</button>
             <button id="btn-calza" class="setting-pill" data-active="false" title="Call the count exactly right to win a die back">🎯 Calza</button>
+            <button id="btn-reveal-reroll" class="setting-pill" data-active="false" title="Reveal dice with your bid; your other dice reroll (Standard mode only)">👁 Reveal &amp; Reroll</button>
           </div>
         </div>
         <p id="host-only-hint" class="muted-msg hidden settings-hint">Only the host can change settings</p>
@@ -306,9 +307,14 @@
           </div>
         </div>
         <div id="bid-hint-msg"></div>
+        <div id="reveal-selector" class="hidden">
+          <label>Reveal dice with your bid (rest reroll):</label>
+          <div id="reveal-dice-row"><!-- populated by JS --></div>
+        </div>
         <div id="action-buttons">
           <button id="btn-challenge" class="btn btn-danger" disabled>Liar</button>
           <button id="btn-calza-action" class="btn btn-calza hidden" disabled>🎯 Calza</button>
+          <button id="btn-reveal-bid" class="btn btn-reveal hidden" disabled>👁 Reveal &amp; Bid</button>
           <button id="btn-bid" class="btn btn-success" disabled>Make Bid</button>
         </div>
       </div>

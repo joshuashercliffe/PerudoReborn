@@ -57,7 +57,7 @@ socket1.on('server_stats', ({ games, players }) => {
 // ─── Per-player state ─────────────────────────────────────────────────────────
 // PS[0] = primary player; extra test players are pushed as PS[1], PS[2], …
 const PS = [
-  { socket: socket1, id: null, name: null, dice: [], autoLiar: false, lockedBid: null },
+  { socket: socket1, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null },
 ];
 let activeIdx     = 0;   // which player the UI is currently controlling
 let dualMode      = false;
@@ -78,6 +78,7 @@ let ipLiarQty = 1, ipLiarFace = 2, ipLiarAccused = null;
 let ipConfQty = 1, ipConfFace = 2, ipConfirmSocket = null;
 let ipChallengePending = false;
 let currentRoomId  = null;
+let revealSel      = new Set();   // chosen secret-dice indices for Reveal & Bid
 
 // Active player helpers
 const p     = () => PS[activeIdx];
@@ -85,6 +86,7 @@ const pid   = () => p()?.id;
 const pname = () => p()?.name;
 const pdice = () => p()?.dice ?? [];
 const pauto = () => p()?.autoLiar ?? false;
+const prevc = () => p()?.revealedCount ?? 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Connection
@@ -245,13 +247,14 @@ socket1.on('joined_lobby', state => {
   }
 });
 
-socket1.on('rejoined', ({ sessionToken, roomId, state, dice, phase }) => {
+socket1.on('rejoined', ({ sessionToken, roomId, state, dice, revealedCount, phase }) => {
   localStorage.setItem('perudoSession', sessionToken);
   if (roomId) currentRoomId = roomId;
   PS[0].id   = socket1.id;
   gs         = state;
   PS[0].name = state.players.find(pl => pl.id === PS[0].id)?.name ?? null;
   PS[0].dice = dice || [];
+  PS[0].revealedCount = revealedCount ?? 0;
 
   if (phase === 'lobby') {
     showScreen('screen-lobby');
@@ -342,6 +345,15 @@ function renderLobby(state) {
   calzaBtn.classList.toggle('active', !!state.calzaEnabled);
   calzaBtn.disabled = !iAmLobbyHost;
 
+  const rrBtn = document.getElementById('btn-reveal-reroll');
+  const rrStandard = state.gameMode === 'standard';
+  rrBtn.dataset.active = state.revealRerollEnabled ? 'true' : 'false';
+  rrBtn.classList.toggle('active', !!state.revealRerollEnabled);
+  rrBtn.disabled = !iAmLobbyHost || !rrStandard;
+  rrBtn.title = rrStandard
+    ? 'Reveal dice with your bid; your other dice reroll'
+    : 'Reveal & Reroll is available in Standard mode only';
+
   iAmLobbyHost ? hideEl('host-only-hint') : showEl('host-only-hint');
 
   const startBtn = document.getElementById('btn-start');
@@ -397,6 +409,11 @@ document.getElementById('btn-inperson').addEventListener('click', function() {
 document.getElementById('btn-calza').addEventListener('click', function() {
   const newVal = this.dataset.active !== 'true';
   p().socket.emit('set_calza', { value: newVal });
+});
+
+document.getElementById('btn-reveal-reroll').addEventListener('click', function() {
+  const newVal = this.dataset.active !== 'true';
+  p().socket.emit('set_reveal_reroll', { value: newVal });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -464,7 +481,7 @@ document.getElementById('p2-name-input').addEventListener('keydown', e => {
 function initTestPlayer(name) {
   const idx    = PS.length;
   const socket = io();
-  PS.push({ socket, id: null, name: null, dice: [], autoLiar: false, lockedBid: null });
+  PS.push({ socket, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null });
 
   if (!dualMode) {
     dualMode = true;
@@ -493,9 +510,10 @@ function initTestPlayer(name) {
     renderLobby(state);
   });
 
-  socket.on('your_dice', ({ dice }) => {
+  socket.on('your_dice', ({ dice, revealedCount }) => {
     PS[idx].dice = dice;
-    if (activeIdx === idx) { dealMyDice(); applyDicePrivacy(); }
+    PS[idx].revealedCount = revealedCount ?? 0;
+    if (activeIdx === idx) { revealSel.clear(); dealMyDice(); applyDicePrivacy(); renderActionUI(); }
   });
 
   socket.on('ip_confirm_request', data => showIPConfirmOverlay(data, socket));
@@ -873,9 +891,11 @@ socket1.on('ip_challenge_cancelled', () => {
 socket1.on('round_start', state => {
   gs = state;
   PS[0].dice      = [];
+  PS[0].revealedCount = 0;
   PS[0].autoLiar  = (state.autoLiarPlayerId === PS[0].id);
   PS[0].lockedBid = null;
-  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; } });
+  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; } });
+  revealSel.clear();
   lbQty = 1; lbFace = 2;
   diceRevealed = false;
   ipChallengePending = false;
@@ -918,9 +938,10 @@ function showFaceoffAnnounce() {
   setTimeout(() => hideEl(overlay), 2500);
 }
 
-socket1.on('your_dice', ({ dice }) => {
+socket1.on('your_dice', ({ dice, revealedCount }) => {
   PS[0].dice = dice;
-  if (activeIdx === 0) dealMyDice();
+  PS[0].revealedCount = revealedCount ?? 0;
+  if (activeIdx === 0) { revealSel.clear(); dealMyDice(); renderActionUI(); }
   applyDicePrivacy();
 });
 
@@ -1054,17 +1075,22 @@ function renderBidHistory() {
         <span class="bhe-calza">🎯 CALZA</span>
       </div>`;
     }
+    const revealHtml = e.revealed?.length
+      ? `<span class="bhe-reveal">👁 ${e.revealed.map(d => makeDie(d, 'tiny')).join('')}</span>`
+      : '';
     if (e.face === null) {
       return `<div class="bid-history-entry">
         <span class="bhe-name">${esc(e.name)}</span>
         <span class="bhe-arrow">→</span>
         <span class="bhe-bid">Sum: <strong>${e.qty}</strong></span>
+        ${revealHtml}
       </div>`;
     }
     return `<div class="bid-history-entry">
       <span class="bhe-name">${esc(e.name)}</span>
       <span class="bhe-arrow">→</span>
       <span class="bhe-bid"><strong>${e.qty}</strong> × ${makeDie(e.face, 'tiny')}</span>
+      ${revealHtml}
     </div>`;
   }).join('');
   list.scrollTop = list.scrollHeight;
@@ -1204,6 +1230,7 @@ function renderActionUI() {
   showEl('action-ui');
   gs.isPalifico && !gs.isFaceoff ? showEl('palifico-notice') : hideEl('palifico-notice');
   gs.calzaEnabled ? showEl('btn-calza-action') : hideEl('btn-calza-action');
+  renderRevealSelector();
 
   if (gs.isFaceoff) {
     document.getElementById('qty-label').textContent = 'Bid Sum';
@@ -1223,6 +1250,31 @@ function renderActionUI() {
   refreshBidControls();
 }
 
+// Reveal & Reroll: render the player's dice as a selector (locked dice first,
+// then selectable secret dice). Hidden unless the mode is active in Standard.
+function renderRevealSelector() {
+  const enabled = gs.revealRerollEnabled && gs.gameMode === 'standard' && !gs.isInPerson;
+  if (!enabled) { hideEl('reveal-selector'); hideEl('btn-reveal-bid'); return; }
+  const dice   = pdice();
+  const locked = prevc();
+  document.getElementById('reveal-dice-row').innerHTML = dice.map((d, i) => {
+    if (i < locked) return `<div class="reveal-die-btn locked">${makeDie(d, 'tiny')}</div>`;
+    const sIdx = i - locked;
+    return `<button class="reveal-die-btn${revealSel.has(sIdx) ? ' selected' : ''}" data-sidx="${sIdx}">${makeDie(d, 'tiny')}</button>`;
+  }).join('');
+  showEl('reveal-selector');
+  showEl('btn-reveal-bid');
+}
+
+document.getElementById('reveal-dice-row').addEventListener('click', e => {
+  const btn = e.target.closest('.reveal-die-btn[data-sidx]');
+  if (!btn) return;
+  const sIdx = parseInt(btn.dataset.sidx, 10);
+  revealSel.has(sIdx) ? revealSel.delete(sIdx) : revealSel.add(sIdx);
+  btn.classList.toggle('selected');
+  refreshBidControls();
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Bid controls
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1238,6 +1290,7 @@ function refreshBidControls() {
     document.getElementById('btn-bid').disabled = !v.ok;
     document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
     document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound;
+    document.getElementById('btn-reveal-bid').disabled = !(v.ok && revealSel.size >= 1);
     return;
   }
 
@@ -1259,10 +1312,19 @@ function refreshBidControls() {
   document.getElementById('btn-bid').disabled = !v.ok;
   document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
   document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound;
+  document.getElementById('btn-reveal-bid').disabled = !(v.ok && revealSel.size >= 1);
 }
 
 document.getElementById('btn-bid').addEventListener('click', () => {
+  revealSel.clear();
   p().socket.emit('make_bid', { quantity: selQty, face: gs.isFaceoff ? 0 : selFace });
+});
+
+document.getElementById('btn-reveal-bid').addEventListener('click', () => {
+  if (!revealSel.size) return;
+  const reveal = [...revealSel];
+  revealSel.clear();
+  p().socket.emit('make_bid', { quantity: selQty, face: gs.isFaceoff ? 0 : selFace, reveal });
 });
 
 document.getElementById('btn-challenge').addEventListener('click', () => {
@@ -1363,12 +1425,12 @@ function showWoahOverlay(aboveBy) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bid made
 // ─────────────────────────────────────────────────────────────────────────────
-socket1.on('bid_made', ({ bid, bidderName, gameState: state }) => {
+socket1.on('bid_made', ({ bid, bidderName, revealed, gameState: state }) => {
   const wasFirstBid = gs.firstBidOfRound;
   gs = state;
   PS[0].autoLiar = (state.autoLiarPlayerId === PS[0].id);
   PS.slice(1).forEach(ps => { if (ps) ps.autoLiar = (state.autoLiarPlayerId === ps.id); });
-  bidHistory.push({ type: 'bid', name: bidderName, qty: bid.quantity, face: bid.face });
+  bidHistory.push({ type: 'bid', name: bidderName, qty: bid.quantity, face: bid.face, revealed: revealed || [] });
   renderGame();
   renderBidHistory();
   if (bidderName !== pname()) {

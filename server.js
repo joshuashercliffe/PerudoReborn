@@ -73,6 +73,7 @@ function createRoomState() {
     isVariable: false,
     isInPerson: false,
     calzaEnabled: false,
+    revealRerollEnabled: false,
     nextRoundReady: [],
     pendingIPChallenge: null,
     players: [],
@@ -123,6 +124,7 @@ function publicState(room) {
     isVariable:         room.isVariable,
     isInPerson:         room.isInPerson,
     calzaEnabled:       room.calzaEnabled,
+    revealRerollEnabled: room.revealRerollEnabled,
     autoLiarPlayerId:   room.autoLiarPlayerId,
     autoBidPlayerId:    room.autoBidPlayerId
   };
@@ -280,10 +282,10 @@ function startRound(room, roomId) {
     }
   }
 
-  room.players.forEach(p => { p.dice = roll(p.diceCount); });
+  room.players.forEach(p => { p.revealedDice = []; p.dice = roll(p.diceCount); });
 
   io.to(roomId).emit('round_start', publicState(room));
-  room.players.forEach(p => { io.to(p.id).emit('your_dice', { dice: p.dice }); });
+  room.players.forEach(p => { io.to(p.id).emit('your_dice', { dice: p.dice, revealedCount: 0 }); });
 }
 
 // ─────────────────────────────────────────
@@ -567,6 +569,7 @@ io.on('connection', socket => {
       roomId,
       state: publicState(room),
       dice: player.dice,
+      revealedCount: player.revealedDice?.length ?? 0,
       phase: room.phase
     });
 
@@ -595,7 +598,7 @@ io.on('connection', socket => {
     socket.playerName = finalName;
 
     const token = crypto.randomUUID();
-    const player = { id: socket.id, name: finalName, diceCount: 5, dice: [], connected: true };
+    const player = { id: socket.id, name: finalName, diceCount: 5, dice: [], revealedDice: [], connected: true };
     sessions[token] = { socketId: socket.id, roomId };
     room.players.push(player);
     if (room.players.length === 1) room.host = socket.id;
@@ -617,6 +620,8 @@ io.on('connection', socket => {
     if (socket.id !== room.host) return;
     if (!['standard', 'reverse'].includes(mode)) return;
     room.gameMode = mode;
+    // Reveal & Reroll is Standard-only — clear it if the host leaves Standard.
+    if (mode !== 'standard') room.revealRerollEnabled = false;
     io.to(roomId).emit('lobby_update', publicState(room));
   });
 
@@ -647,6 +652,16 @@ io.on('connection', socket => {
     if (room.phase !== 'lobby') return;
     if (socket.id !== room.host) return;
     room.calzaEnabled = !!value;
+    io.to(roomId).emit('lobby_update', publicState(room));
+  });
+
+  // ── Toggle Reveal & Reroll (Standard only) ──
+  socket.on('set_reveal_reroll', ({ value }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'lobby') return;
+    if (socket.id !== room.host) return;
+    room.revealRerollEnabled = !!value && room.gameMode === 'standard';
     io.to(roomId).emit('lobby_update', publicState(room));
   });
 
@@ -696,7 +711,7 @@ io.on('connection', socket => {
     if (room.players.length < 2) return socket.emit('start_error', { message: 'Need at least 2 players to start.' });
 
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
-    room.players.forEach((p, i) => { p.diceCount = startDice; p.dice = []; p.colorIndex = i; });
+    room.players.forEach((p, i) => { p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i; });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
     room.palificoTriggerPlayer = null;
@@ -704,7 +719,7 @@ io.on('connection', socket => {
   });
 
   // ── Make bid ──────────────────────────
-  socket.on('make_bid', ({ quantity, face }) => {
+  socket.on('make_bid', ({ quantity, face, reveal }) => {
     const ctx = getRoom(); if (!ctx) return;
     const { room, roomId } = ctx;
     if (room.phase !== 'playing') return;
@@ -722,13 +737,31 @@ io.on('connection', socket => {
       room.palificoFace = f;
     }
 
+    // Reveal & Reroll (Standard, opt-in): reveal chosen secret dice, reroll the rest.
+    let revealed = [];
+    if (room.revealRerollEnabled && room.gameMode === 'standard' && !room.isInPerson && Array.isArray(reveal) && reveal.length) {
+      const lockedCount = cp.revealedDice.length;
+      const secretDice  = cp.dice.slice(lockedCount);
+      const idxs = [...new Set(reveal.map(Number))].filter(i => Number.isInteger(i) && i >= 0 && i < secretDice.length);
+      if (idxs.length) {
+        revealed = idxs.map(i => secretDice[i]);
+        const rest = secretDice.filter((_, i) => !idxs.includes(i));
+        cp.revealedDice = cp.revealedDice.concat(revealed);
+        cp.dice = cp.revealedDice.concat(roll(rest.length));
+      }
+    }
+
     room.lastBidderIndex    = room.currentPlayerIndex;
     room.currentBid         = { quantity: qty, face: room.isFaceoff ? null : f };
     room.firstBidOfRound    = false;
     if (room.autoBidPlayerId === socket.id) room.autoBidPlayerId = null;
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
 
-    io.to(roomId).emit('bid_made', { bid: room.currentBid, bidderName: cp.name, gameState: publicState(room) });
+    io.to(roomId).emit('bid_made', { bid: room.currentBid, bidderName: cp.name, revealed, gameState: publicState(room) });
+
+    if (revealed.length) {
+      io.to(cp.id).emit('your_dice', { dice: cp.dice, revealedCount: cp.revealedDice.length });
+    }
 
     if (room.autoLiarPlayerId) {
       const newCurrent = room.players[room.currentPlayerIndex];
