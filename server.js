@@ -107,7 +107,8 @@ function publicState(room) {
     phase: room.phase,
     players: room.players.map(p => ({
       id: p.id, name: p.name, diceCount: p.diceCount,
-      connected: p.connected, colorIndex: p.colorIndex ?? 0
+      connected: p.connected, colorIndex: p.colorIndex ?? 0,
+      revealedDice: p.revealedDice ?? []
     })),
     currentPlayerIndex: room.currentPlayerIndex,
     currentPlayerId:    cp?.id   ?? null,

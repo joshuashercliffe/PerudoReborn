@@ -265,7 +265,7 @@ body.dual-mode .player-chip { cursor: pointer; }
   flex-wrap: wrap;
 }
 
-#bid-display, #quick-maths {
+#bid-display, #quick-maths, #revealed-dice {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -274,6 +274,12 @@ body.dual-mode .player-chip { cursor: pointer; }
   min-width: 160px;
   flex: 1;
   max-width: 240px;
+}
+#revealed-dice { display: flex; flex-direction: column; align-items: center; }
+#revealed-dice-list {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  align-items: center; justify-content: center;
+  min-height: 40px; margin-top: 4px;
 }
 
 .info-label { font-size: .7rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
