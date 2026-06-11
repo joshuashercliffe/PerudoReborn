@@ -327,9 +327,11 @@ function renderLobby(state) {
     </div>`;
   }).join('');
 
+  // Variable mode can move more than one die, so phrase it as "dice".
+  const dieWord = state.isVariable ? 'dice' : 'a die';
   const modeDescs = {
-    standard: '5 dice each — lose a die when you lose a round',
-    reverse:  '1 die each — gain a die when you lose, go above 5 and you\'re out'
+    standard: `5 dice each — lose ${dieWord} when you lose a round`,
+    reverse:  `1 die each — gain ${dieWord} when you lose, go above 5 and you're out`
   };
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === state.gameMode);
@@ -1039,8 +1041,10 @@ function renderQuickMaths() {
     const qm = unrevealed / 3;
     const qm1s = unrevealed / 6;
     const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+    const rrActive = gs.revealRerollEnabled && gs.gameMode === 'standard' && !gs.isInPerson;
+    const diceLabel = rrActive ? `${unrevealed} unrevealed dice` : `${unrevealed} dice`;
     document.getElementById('qm-value').textContent = fmt(qm);
-    document.getElementById('qm-sub').textContent = `(${unrevealed} dice) · 1s: ${fmt(qm1s)}`;
+    document.getElementById('qm-sub').textContent = `(${diceLabel}) · 1s: ${fmt(qm1s)}`;
     document.getElementById('total-dice-note').textContent = '';
   }
   renderRevealedDice();
