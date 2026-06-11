@@ -54,32 +54,32 @@ body {
 
 /* ── Typography ──────────────────────────────────────────────────────── */
 h1 { font-size: 3rem; font-weight: 900; letter-spacing: -1px; color: var(--accent); line-height: 1; }
-/* Brief (~0.5s) glitch burst every 20s. The last ~2.5% of the cycle = 0.5s. */
-#screen-landing h1 { position: relative; animation: perudo-idle 20s linear 2s infinite; }
+/* Glitch burst every 15s. The last ~6% of the cycle = ~0.9s of glitch. */
+#screen-landing h1 { position: relative; animation: perudo-idle 15s linear 2s infinite; }
 @keyframes perudo-idle {
-  0%, 97.5%, 100% { opacity:1; clip-path:none; transform:none; color:var(--accent); }
-  98%   { clip-path:inset(6% 0 64% 0);  transform:translateX(-3px); color:#0ff; }
-  98.4% { clip-path:inset(54% 0 14% 0); transform:translateX(4px);  color:#f0f; }
-  98.6%, 99.4% { opacity:0; }                        /* obscured while the halves split */
-  99.6% { opacity:1; clip-path:none; transform:translateX(-2px); color:#0ff; }
+  0%, 94%, 100% { opacity:1; clip-path:none; transform:none; color:var(--accent); }
+  95%   { clip-path:inset(6% 0 64% 0);  transform:translateX(-3px); color:#0ff; }
+  96%   { clip-path:inset(54% 0 14% 0); transform:translateX(4px);  color:#f0f; }
+  96.6%, 99.2% { opacity:0; }                        /* obscured while the halves split (~0.4s) */
+  99.5% { opacity:1; clip-path:none; transform:translateX(-2px); color:#0ff; }
   99.9% { opacity:1; clip-path:none; transform:none; color:var(--accent); }
 }
-/* Two duplicated layers: top half flies left, bottom half flies right — a split-second flash. */
+/* Two duplicated layers: top half flies left, bottom half flies right — held briefly. */
 #screen-landing h1::before,
 #screen-landing h1::after {
   content: attr(data-text);
   position: absolute; left: 0; top: 0; width: 100%;
   text-align: center; pointer-events: none; opacity: 0;
 }
-#screen-landing h1::before { animation: perudo-split-top 20s linear 2s infinite; }
-#screen-landing h1::after  { animation: perudo-split-bottom 20s linear 2s infinite; }
+#screen-landing h1::before { animation: perudo-split-top 15s linear 2s infinite; }
+#screen-landing h1::after  { animation: perudo-split-bottom 15s linear 2s infinite; }
 @keyframes perudo-split-top {
-  0%, 98.5%, 99.5%, 100% { opacity:0; transform:translateX(0); letter-spacing:-1px; }
-  98.7%, 99.3% { opacity:1; clip-path:inset(0 0 50% 0); transform:translateX(-18px); letter-spacing:6px; color:#0ff; }
+  0%, 96.4%, 99.4%, 100% { opacity:0; transform:translateX(0); letter-spacing:-1px; }
+  96.6%, 99.2% { opacity:1; clip-path:inset(0 0 50% 0); transform:translateX(-18px); letter-spacing:6px; color:#0ff; }
 }
 @keyframes perudo-split-bottom {
-  0%, 98.5%, 99.5%, 100% { opacity:0; transform:translateX(0); letter-spacing:-1px; }
-  98.7%, 99.3% { opacity:1; clip-path:inset(50% 0 0 0); transform:translateX(18px); letter-spacing:6px; color:#f0f; }
+  0%, 96.4%, 99.4%, 100% { opacity:0; transform:translateX(0); letter-spacing:-1px; }
+  96.6%, 99.2% { opacity:1; clip-path:inset(50% 0 0 0); transform:translateX(18px); letter-spacing:6px; color:#f0f; }
 }
 h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 20px; }
 .tagline { font-size: .85rem; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin: 6px 0 32px; }
