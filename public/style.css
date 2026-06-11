@@ -195,15 +195,16 @@ input[type="text"]::placeholder { color: var(--muted); }
   border-radius: 8px; padding: 8px 14px;
   transition: border-color .15s, background .15s;
 }
-.lobby-player[draggable="true"] { cursor: grab; }
-.lobby-player[draggable="true"]:active { cursor: grabbing; }
 .lobby-player.drag-over { border-color: var(--accent); background: rgba(233,69,96,.08); }
+.lobby-player.dragging { opacity: .5; }
 .lobby-player .player-name { font-weight: 600; flex: 1; }
 .lobby-player.is-host { border-color: rgba(245,166,35,.4); }
 .drag-handle {
-  color: var(--border); font-size: 1.1rem; margin-right: 10px;
+  color: var(--muted); font-size: 1.3rem; margin-right: 10px;
   user-select: none; flex-shrink: 0;
+  cursor: grab; touch-action: none; padding: 2px 4px;
 }
+.drag-handle:active { cursor: grabbing; }
 .host-chip {
   font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
   background: var(--gold); color: #1a1200; border-radius: 20px; padding: 2px 10px;
