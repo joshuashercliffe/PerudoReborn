@@ -316,8 +316,8 @@ function renderLobby(state) {
     const showIdle = !pl.connected && !isLocalPlayer(pl.id);
     const canKick = iAmLobbyHost && showIdle && !isMe;
     return `<div class="lobby-player${isHost ? ' is-host' : ''}${showIdle ? ' disconnected' : ''}"
-               data-id="${esc(pl.id)}" data-idx="${idx}" ${iAmLobbyHost ? 'draggable="true"' : ''}>
-      ${iAmLobbyHost ? '<span class="drag-handle">⠿</span>' : ''}
+               data-id="${esc(pl.id)}" data-idx="${idx}">
+      ${iAmLobbyHost ? '<span class="drag-handle" title="Drag to reorder">⠿</span>' : ''}
       <span class="player-name">${esc(pl.name)}${showIdle ? ' <span class="muted-msg">(disconnected)</span>' : ''}</span>
       <div style="display:flex;gap:6px;align-items:center">
         ${isHost ? '<span class="host-chip">Host</span>' : ''}
@@ -426,50 +426,56 @@ document.getElementById('btn-reveal-reroll').addEventListener('click', function(
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Lobby drag-to-reorder seating
+// Lobby drag-to-reorder seating (pointer events — works on mouse and touch)
 // ─────────────────────────────────────────────────────────────────────────────
-let dragSrcIdx = null;
+let dragSrcIdx = null, dragRow = null;
 const lobbyList = document.getElementById('lobby-players');
 
-lobbyList.addEventListener('dragstart', e => {
-  const row = e.target.closest('[data-idx]');
+function rowUnderPointer(x, y) {
+  return document.elementFromPoint(x, y)?.closest('.lobby-player[data-idx]') ?? null;
+}
+function clearDragMarks() {
+  lobbyList.querySelectorAll('.drag-over, .dragging')
+    .forEach(el => el.classList.remove('drag-over', 'dragging'));
+}
+function endDrag() { dragSrcIdx = null; dragRow = null; clearDragMarks(); }
+
+lobbyList.addEventListener('pointerdown', e => {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle) return;                       // only the ⠿ handle starts a drag
+  const row = handle.closest('[data-idx]');
   if (!row) return;
+  e.preventDefault();
   dragSrcIdx = parseInt(row.dataset.idx, 10);
-  e.dataTransfer.effectAllowed = 'move';
+  dragRow = row;
+  row.classList.add('dragging');
+  lobbyList.setPointerCapture?.(e.pointerId);
 });
 
-lobbyList.addEventListener('dragover', e => {
+lobbyList.addEventListener('pointermove', e => {
+  if (dragSrcIdx === null) return;
   e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  const row = e.target.closest('[data-idx]');
+  const over = rowUnderPointer(e.clientX, e.clientY);
   lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-  if (row) row.classList.add('drag-over');
+  if (over && over !== dragRow) over.classList.add('drag-over');
 });
 
-lobbyList.addEventListener('dragleave', e => {
-  if (!lobbyList.contains(e.relatedTarget)) {
-    lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+lobbyList.addEventListener('pointerup', e => {
+  if (dragSrcIdx === null) return;
+  const over = rowUnderPointer(e.clientX, e.clientY);
+  if (over) {
+    const destIdx = parseInt(over.dataset.idx, 10);
+    if (destIdx !== dragSrcIdx) {
+      const ids = gs.players.map(pl => pl.id);
+      const [moved] = ids.splice(dragSrcIdx, 1);
+      ids.splice(destIdx, 0, moved);
+      p().socket.emit('reorder_players', { order: ids });
+    }
   }
+  endDrag();
 });
 
-lobbyList.addEventListener('drop', e => {
-  e.preventDefault();
-  lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-  const row = e.target.closest('[data-idx]');
-  if (!row || dragSrcIdx === null) { dragSrcIdx = null; return; }
-  const destIdx = parseInt(row.dataset.idx, 10);
-  if (dragSrcIdx === destIdx) { dragSrcIdx = null; return; }
-  const ids = gs.players.map(pl => pl.id);
-  const [moved] = ids.splice(dragSrcIdx, 1);
-  ids.splice(destIdx, 0, moved);
-  dragSrcIdx = null;
-  p().socket.emit('reorder_players', { order: ids });
-});
-
-lobbyList.addEventListener('dragend', () => {
-  dragSrcIdx = null;
-  lobbyList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-});
+lobbyList.addEventListener('pointercancel', endDrag);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Multi-player test mode: add players + toggle
