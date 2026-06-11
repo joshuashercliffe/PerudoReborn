@@ -36,7 +36,7 @@ body {
 #screen-game.active {
   flex-direction: column;
   align-items: stretch;
-  padding: 12px 16px;
+  padding: 0;
   gap: 14px;
 }
 
@@ -55,7 +55,7 @@ body {
 /* ── Typography ──────────────────────────────────────────────────────── */
 h1 { font-size: 3rem; font-weight: 900; letter-spacing: -1px; color: var(--accent); line-height: 1; }
 /* Glitch burst every 15s. The last ~6% of the cycle = ~0.9s of glitch. */
-#screen-landing h1 { position: relative; animation: perudo-idle 15s linear 2s infinite; }
+#screen-landing h1, #screen-lobby h1 { position: relative; animation: perudo-idle 15s linear 2s infinite; }
 @keyframes perudo-idle {
   0%, 94%, 100% { opacity:1; clip-path:none; transform:none; color:var(--accent); }
   95%   { clip-path:inset(6% 0 64% 0);  transform:translateX(-3px); color:#0ff; }
@@ -66,13 +66,15 @@ h1 { font-size: 3rem; font-weight: 900; letter-spacing: -1px; color: var(--accen
 }
 /* Two duplicated layers: top half flies left, bottom half flies right — held briefly. */
 #screen-landing h1::before,
-#screen-landing h1::after {
+#screen-landing h1::after,
+#screen-lobby h1::before,
+#screen-lobby h1::after {
   content: attr(data-text);
   position: absolute; left: 0; top: 0; width: 100%;
   text-align: center; pointer-events: none; opacity: 0;
 }
-#screen-landing h1::before { animation: perudo-split-top 15s linear 2s infinite; }
-#screen-landing h1::after  { animation: perudo-split-bottom 15s linear 2s infinite; }
+#screen-landing h1::before, #screen-lobby h1::before { animation: perudo-split-top 15s linear 2s infinite; }
+#screen-landing h1::after,  #screen-lobby h1::after  { animation: perudo-split-bottom 15s linear 2s infinite; }
 @keyframes perudo-split-top {
   0%, 96.4%, 99.4%, 100% { opacity:0; transform:translateX(0); letter-spacing:-1px; }
   96.6%, 99.2% { opacity:1; clip-path:inset(0 0 50% 0); transform:translateX(-18px); letter-spacing:6px; color:#0ff; }
@@ -264,7 +266,7 @@ body.dual-mode .player-chip { cursor: pointer; }
 }
 
 /* ── Game Center ─────────────────────────────────────────────────────── */
-#game-center { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: 1; }
+#game-center { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: 1; padding: 0 16px 12px; }
 
 #round-banner { display: flex; align-items: center; gap: 12px; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 #palifico-badge {
