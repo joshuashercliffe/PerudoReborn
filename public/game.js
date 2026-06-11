@@ -87,12 +87,18 @@ const pname = () => p()?.name;
 const pdice = () => p()?.dice ?? [];
 const pauto = () => p()?.autoLiar ?? false;
 const prevc = () => p()?.revealedCount ?? 0;
+// Every socket id this browser has ever used, across the primary and all test
+// players (including reconnects). Players in this set are never shown as
+// idle/kickable here — the host drives them, so they aren't "real" dropouts.
+const localIds = new Set();
+const isLocalPlayer = id => localIds.has(id);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Connection
 // ─────────────────────────────────────────────────────────────────────────────
 socket1.on('connect', () => {
   PS[0].id = socket1.id;
+  localIds.add(socket1.id);
   const token = localStorage.getItem('perudoSession');
   if (token) socket1.emit('rejoin', { sessionToken: token });
 });
@@ -307,11 +313,12 @@ function renderLobby(state) {
   document.getElementById('lobby-players').innerHTML = state.players.map((pl, idx) => {
     const isHost  = pl.id === state.host;
     const isMe    = pl.id === pid();
-    const canKick = iAmLobbyHost && !pl.connected && !isMe && !dualMode;
-    return `<div class="lobby-player${isHost ? ' is-host' : ''}${!pl.connected ? ' disconnected' : ''}"
+    const showIdle = !pl.connected && !isLocalPlayer(pl.id);
+    const canKick = iAmLobbyHost && showIdle && !isMe;
+    return `<div class="lobby-player${isHost ? ' is-host' : ''}${showIdle ? ' disconnected' : ''}"
                data-id="${esc(pl.id)}" data-idx="${idx}" ${iAmLobbyHost ? 'draggable="true"' : ''}>
       ${iAmLobbyHost ? '<span class="drag-handle">⠿</span>' : ''}
-      <span class="player-name">${esc(pl.name)}${!pl.connected ? ' <span class="muted-msg">(disconnected)</span>' : ''}</span>
+      <span class="player-name">${esc(pl.name)}${showIdle ? ' <span class="muted-msg">(disconnected)</span>' : ''}</span>
       <div style="display:flex;gap:6px;align-items:center">
         ${isHost ? '<span class="host-chip">Host</span>' : ''}
         ${isMe   ? '<span class="you-chip">You</span>'  : ''}
@@ -491,6 +498,7 @@ function initTestPlayer(name) {
 
   socket.on('connect', () => {
     PS[idx].id = socket.id;
+    localIds.add(socket.id);
     socket.emit('join_game', { roomId: currentRoomId });
   });
 
@@ -973,13 +981,14 @@ function renderPlayersBar() {
   bar.innerHTML = sorted.map(pl => {
     const active      = pl.id === gs.currentPlayerId;
     const me          = pl.id === myId;
-    const canKick     = iAmHost && !pl.connected && !me && !dualMode;
+    const showIdle    = !pl.connected && !isLocalPlayer(pl.id);
+    const canKick     = iAmHost && showIdle && !me;
     const dice        = pl.diceCount ? `${pl.diceCount}×🎲` : '—';
     const hasAutoliar = pl.id === gs.autoLiarPlayerId;
     const hasAutobid  = pl.id === gs.autoBidPlayerId;
     const locks = (hasAutobid ? '<span class="chip-lock chip-lock-bid">AB</span>' : '')
                 + (hasAutoliar ? '<span class="chip-lock chip-lock-liar">AL</span>' : '');
-    return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${!pl.connected ? ' disconnected' : ''}" data-id="${esc(pl.id)}">
+    return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${showIdle ? ' disconnected' : ''}" data-id="${esc(pl.id)}">
       <div class="chip-name" title="${esc(pl.name)}">${esc(pl.name)}${me ? ' ★' : ''}</div>
       <div class="chip-dice">${dice}${locks ? `<span class="chip-locks">${locks}</span>` : ''}</div>
       ${canKick ? `<button class="btn-kick" data-id="${esc(pl.id)}">Kick</button>` : ''}
