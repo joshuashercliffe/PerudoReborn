@@ -352,16 +352,19 @@ function renderLobby(state) {
   const calzaBtn = document.getElementById('btn-calza');
   calzaBtn.dataset.active = state.calzaEnabled ? 'true' : 'false';
   calzaBtn.classList.toggle('active', !!state.calzaEnabled);
-  calzaBtn.disabled = !iAmLobbyHost;
+  calzaBtn.disabled = !iAmLobbyHost || state.isInPerson;
+  calzaBtn.title = state.isInPerson ? 'Not available in In-Person mode' : '';
 
   const rrBtn = document.getElementById('btn-reveal-reroll');
   const rrStandard = state.gameMode === 'standard';
   rrBtn.dataset.active = state.revealRerollEnabled ? 'true' : 'false';
   rrBtn.classList.toggle('active', !!state.revealRerollEnabled);
-  rrBtn.disabled = !iAmLobbyHost || !rrStandard;
-  rrBtn.title = rrStandard
-    ? 'Reveal dice with your bid; your other dice reroll'
-    : 'Reveal & Reroll is available in Standard mode only';
+  rrBtn.disabled = !iAmLobbyHost || !rrStandard || state.isInPerson;
+  rrBtn.title = state.isInPerson
+    ? 'Not available in In-Person mode'
+    : rrStandard
+      ? 'Reveal dice with your bid; your other dice reroll'
+      : 'Reveal & Reroll is available in Standard mode only';
 
   iAmLobbyHost ? hideEl('host-only-hint') : showEl('host-only-hint');
 
