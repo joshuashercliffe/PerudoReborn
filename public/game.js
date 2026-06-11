@@ -1024,14 +1024,30 @@ function renderQuickMaths() {
     document.getElementById('total-dice-note').textContent = '';
   } else {
     label.textContent = 'Quick Maths';
-    const total = gs.players.reduce((s, pl) => s + pl.diceCount, 0);
-    const qm = total / 3;
-    const qm1s = total / 6;
+    const total    = gs.players.reduce((s, pl) => s + pl.diceCount, 0);
+    const revealed = gs.players.reduce((s, pl) => s + (pl.revealedDice?.length || 0), 0);
+    const unrevealed = total - revealed;   // revealed dice are known, so exclude them
+    const qm = unrevealed / 3;
+    const qm1s = unrevealed / 6;
     const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
     document.getElementById('qm-value').textContent = fmt(qm);
-    document.getElementById('qm-sub').textContent = `(${total} dice) · 1s: ${fmt(qm1s)}`;
+    document.getElementById('qm-sub').textContent = `(${unrevealed} dice) · 1s: ${fmt(qm1s)}`;
     document.getElementById('total-dice-note').textContent = '';
   }
+  renderRevealedDice();
+}
+
+function renderRevealedDice() {
+  const active = gs.revealRerollEnabled && gs.gameMode === 'standard' && !gs.isInPerson;
+  if (!active) { hideEl('revealed-dice'); return; }
+  showEl('revealed-dice');
+  const dice = [];
+  gs.players.forEach(pl => {
+    const color = PLAYER_COLORS[pl.colorIndex ?? 0];
+    (pl.revealedDice || []).forEach(d => dice.push(makeColoredDie(d, color, 'tiny')));
+  });
+  document.getElementById('revealed-dice-list').innerHTML =
+    dice.length ? dice.join('') : '<span class="muted-msg" style="font-size:.8rem">None yet</span>';
 }
 
 function renderStatus() {
