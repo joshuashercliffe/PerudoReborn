@@ -647,6 +647,7 @@ function applyDicePrivacy() {
   document.addEventListener('pointerup',     endReveal);
   document.addEventListener('pointercancel', endReveal);
   document.addEventListener('touchend',      endReveal);
+  document.addEventListener('touchcancel',   endReveal);
 })();
 
 function updateBidHistoryVisibility() {
