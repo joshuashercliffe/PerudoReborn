@@ -84,6 +84,7 @@ function createRoomState() {
     lastBidderIndex: -1,
     currentBid: null,
     firstBidOfRound: true,
+    bidCount: 0,
     isPalifico: false,
     isFaceoff: false,
     palificoFace: null,
@@ -262,6 +263,7 @@ function startRound(room, roomId) {
   room.phase = 'playing';
   room.currentBid = null;
   room.firstBidOfRound = true;
+  room.bidCount = 0;
   room.lastBidderIndex = -1;
   room.revealResolved = false;
   room.nextRoundReady = [];
@@ -291,7 +293,7 @@ function startRound(room, roomId) {
   room.players.forEach((p, i) => {
     p.revealedDice = []; p.dice = roll(p.diceCount);
     p.item = itemShuffled.length ? itemShuffled[i % itemShuffled.length] : null;
-    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.doubleDown = false;
+    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false;
   });
 
   io.to(roomId).emit('round_start', publicState(room));
@@ -751,7 +753,7 @@ io.on('connection', socket => {
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
     room.players.forEach((p, i) => {
       p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i;
-      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.doubleDown = false;
+      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false;
     });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
@@ -791,6 +793,15 @@ io.on('connection', socket => {
         cp.dice = cp.revealedDice.concat(roll(rest.length));
       }
     }
+
+    // A new bid supersedes the standing bid, so any shield armed against an
+    // earlier bid window now expires — shields only cover a single bid.
+    room.players.forEach(pl => {
+      if (pl.shieldActive && pl.shieldArmedAt != null && pl.shieldArmedAt <= room.bidCount) {
+        pl.shieldActive = false; pl.shieldArmedAt = null;
+      }
+    });
+    room.bidCount = (room.bidCount || 0) + 1;
 
     room.lastBidderIndex    = room.currentPlayerIndex;
     room.currentBid         = { quantity: qty, face: room.isFaceoff ? null : f };
@@ -921,7 +932,11 @@ io.on('connection', socket => {
         break;
       }
       case 'shield': {
+        // Shield only protects against the standing bid's resolution. It stays
+        // armed until that bid is superseded by a new one (see make_bid).
+        if (!room.currentBid) return;
         player.shieldActive = true;
+        player.shieldArmedAt = room.bidCount;
         player.item = null;
         emit();
         break;
