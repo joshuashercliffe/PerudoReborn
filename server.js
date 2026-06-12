@@ -875,9 +875,12 @@ io.on('connection', socket => {
         if (!isCurrent) return;
         const t = room.players.find(p => p.id === payload.targetId);
         if (!t || t.id === socket.id || !t.dice.length) return;
-        const faceValue = t.dice[Math.floor(Math.random() * t.dice.length)];
+        // Reveal half the target's dice (rounded down), but always at least one.
+        const howMany = Math.max(1, Math.floor(t.dice.length / 2));
+        const idxs = [...t.dice.keys()].sort(() => Math.random() - 0.5).slice(0, howMany);
+        const faces = idxs.map(i => t.dice[i]);
         player.item = null;
-        io.to(socket.id).emit('item_result', { itemType: 'peek', targetName: t.name, faceValue });
+        io.to(socket.id).emit('item_result', { itemType: 'peek', targetName: t.name, faces });
         emit({ targetName: t.name });
         break;
       }

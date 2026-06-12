@@ -1528,12 +1528,16 @@ socket1.on('item_used', ({ playerId, playerName, itemType, targetName, gameState
   toast(msg);
 });
 
-socket1.on('item_result', ({ itemType, targetName, faceValue, face, count }) => {
+socket1.on('item_result', ({ itemType, targetName, faceValue, faces, face, count }) => {
   const content = document.getElementById('item-result-content');
   if (itemType === 'peek') {
+    // Server now sends `faces` (half the dice); keep faceValue fallback for safety.
+    const shown = Array.isArray(faces) && faces.length ? faces
+                : (faceValue != null ? [faceValue] : []);
+    const noun = shown.length === 1 ? 'die' : 'dice';
     content.innerHTML = `<div class="item-result-peek">
-      <div class="item-result-label">👁️ You peeked at ${esc(targetName)}</div>
-      <div class="item-result-die">${makeDie(faceValue, 'large')}</div>
+      <div class="item-result-label">👁️ ${esc(targetName)}'s ${noun} (${shown.length})</div>
+      <div class="item-result-die">${shown.map(v => makeDie(v, 'large')).join('')}</div>
     </div>`;
   } else if (itemType === 'scout') {
     content.innerHTML = `<div class="item-result-scout">
