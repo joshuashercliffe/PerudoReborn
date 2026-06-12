@@ -57,7 +57,7 @@ socket1.on('server_stats', ({ games, players }) => {
 // ─── Per-player state ─────────────────────────────────────────────────────────
 // PS[0] = primary player; extra test players are pushed as PS[1], PS[2], …
 const PS = [
-  { socket: socket1, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null },
+  { socket: socket1, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null, scoutedFace: null },
 ];
 
 const ITEM_META = {
@@ -524,7 +524,7 @@ document.getElementById('p2-name-input').addEventListener('keydown', e => {
 function initTestPlayer(name) {
   const idx    = PS.length;
   const socket = io();
-  PS.push({ socket, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null });
+  PS.push({ socket, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null, scoutedFace: null });
 
   if (!dualMode) {
     dualMode = true;
@@ -560,6 +560,10 @@ function initTestPlayer(name) {
     if (item !== undefined) PS[idx].item = item;
     if (activeIdx === idx) { revealSel.clear(); dealMyDice(); applyDicePrivacy(); renderActionUI(); renderItemSection(); }
   });
+
+  socket.on('item_result', d => showItemResult(d, idx));
+
+  socket.on('bid_error', ({ message }) => toast(`P${idx + 1}: ${message}`, 'error'));
 
   socket.on('ip_confirm_request', data => showIPConfirmOverlay(data, socket));
 
@@ -942,7 +946,8 @@ socket1.on('round_start', state => {
   PS[0].autoLiar  = (state.autoLiarPlayerId === PS[0].id);
   PS[0].lockedBid = null;
   PS[0].item      = null; // will be set by your_dice
-  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; ps.item = null; } });
+  PS[0].scoutedFace = null;
+  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; ps.item = null; ps.scoutedFace = null; } });
   revealSel.clear();
   lbQty = 1; lbFace = 2;
   diceRevealed = false;
@@ -1420,10 +1425,10 @@ function openItemPicker(itemType) {
       break;
     }
     case 'scout': {
-      document.getElementById('item-picker-subtitle').textContent = 'Pick a face to see its true total count across all dice.';
+      document.getElementById('item-picker-subtitle').textContent = 'Pick a face to see its true total count. You can\'t scout 1s — and you can\'t bid or call Liar on the face you scout this round.';
       content.innerHTML = '<div id="item-face-picker" class="face-picker-row"></div>';
       const fp = content.querySelector('#item-face-picker');
-      fp.innerHTML = [1,2,3,4,5,6].map(f => `<button class="face-btn item-face-btn" data-face="${f}">${makeDie(f)}</button>`).join('');
+      fp.innerHTML = [2,3,4,5,6].map(f => `<button class="face-btn item-face-btn" data-face="${f}">${makeDie(f)}</button>`).join('');
       fp.addEventListener('click', e => {
         const btn = e.target.closest('.item-face-btn');
         if (!btn) return;
@@ -1528,7 +1533,8 @@ socket1.on('item_used', ({ playerId, playerName, itemType, targetName, gameState
   toast(msg);
 });
 
-socket1.on('item_result', ({ itemType, targetName, faceValue, faces, face, count }) => {
+// Private peek/scout result for the player at PS[idx]. Stays up until dismissed.
+function showItemResult({ itemType, targetName, faceValue, faces, face, count }, idx = 0) {
   const content = document.getElementById('item-result-content');
   if (itemType === 'peek') {
     // Server now sends `faces` (half the dice); keep faceValue fallback for safety.
@@ -1540,14 +1546,21 @@ socket1.on('item_result', ({ itemType, targetName, faceValue, faces, face, count
       <div class="item-result-die">${shown.map(v => makeDie(v, 'large')).join('')}</div>
     </div>`;
   } else if (itemType === 'scout') {
+    // Remember the scouted face — you can't bid or call Liar on it this round.
+    if (PS[idx]) PS[idx].scoutedFace = face;
     content.innerHTML = `<div class="item-result-scout">
       <div class="item-result-label">🔍 Total ${FACE_NAME[face] ?? face}s in play:</div>
       <div class="item-result-count">${count}</div>
+      <div class="item-result-label" style="margin-top:14px;margin-bottom:0">You can't bid or call Liar on ${FACE_NAME[face] ?? face} this round.</div>
     </div>`;
+    if (activeIdx === idx && gs && (gs.phase === 'playing')) renderActionUI();
   }
   showEl('item-result-overlay');
-  setTimeout(() => hideEl('item-result-overlay'), 3500);
-});
+}
+
+socket1.on('item_result', d => showItemResult(d, 0));
+
+document.getElementById('btn-item-result-dismiss').addEventListener('click', () => hideEl('item-result-overlay'));
 
 socket1.on('item_error', ({ message }) => toast(message, 'error'));
 
@@ -1597,7 +1610,10 @@ function refreshBidControls() {
     return;
   }
 
-  document.querySelectorAll('.face-btn').forEach(btn => {
+  // Scout restriction (skipped in palifico, where the face is already locked).
+  const scoutedFace = (!gs.isPalifico && p()?.scoutedFace) || null;
+
+  document.querySelectorAll('#face-picker .face-btn').forEach(btn => {
     const f = parseInt(btn.dataset.face, 10);
     btn.classList.toggle('selected', f === selFace);
 
@@ -1608,14 +1624,20 @@ function refreshBidControls() {
     } else {
       btn.disabled = false;
     }
+    if (f === scoutedFace) btn.disabled = true;
   });
 
   const v = clientValidate(gs, selQty, selFace);
-  document.getElementById('bid-hint-msg').textContent = v.ok ? '' : v.why;
-  document.getElementById('btn-bid').disabled = !v.ok;
-  document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
+  const bidBlocked = scoutedFace != null && selFace === scoutedFace;
+  const liarBlocked = scoutedFace != null && gs.currentBid && gs.currentBid.face === scoutedFace;
+  document.getElementById('bid-hint-msg').textContent =
+    bidBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't bid them this round.`
+    : liarBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't call Liar on this bid.`
+    : (v.ok ? '' : v.why);
+  document.getElementById('btn-bid').disabled = !v.ok || bidBlocked;
+  document.getElementById('btn-challenge').disabled = gs.firstBidOfRound || liarBlocked;
   document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound;
-  document.getElementById('btn-reveal-bid').disabled = !(v.ok && revealSel.size >= 1);
+  document.getElementById('btn-reveal-bid').disabled = !(v.ok && revealSel.size >= 1) || bidBlocked;
 }
 
 document.getElementById('btn-bid').addEventListener('click', () => {

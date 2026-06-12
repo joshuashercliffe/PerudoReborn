@@ -293,7 +293,7 @@ function startRound(room, roomId) {
   room.players.forEach((p, i) => {
     p.revealedDice = []; p.dice = roll(p.diceCount);
     p.item = itemShuffled.length ? itemShuffled[i % itemShuffled.length] : null;
-    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false;
+    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null;
   });
 
   io.to(roomId).emit('round_start', publicState(room));
@@ -753,7 +753,7 @@ io.on('connection', socket => {
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
     room.players.forEach((p, i) => {
       p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i;
-      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false;
+      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null;
     });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
@@ -773,6 +773,12 @@ io.on('connection', socket => {
     const f   = parseInt(face, 10);
     const check = validateBid(qty, f, room);
     if (!check.valid) return socket.emit('bid_error', { message: check.reason });
+
+    // Scout restriction: you can't bid the face you scouted this round
+    // (skipped in palifico/faceoff, where face choice is constrained/absent).
+    if (!room.isFaceoff && !room.isPalifico && cp.scoutedFace && f === cp.scoutedFace) {
+      return socket.emit('bid_error', { message: `You scouted ${f}s — you can't bid them this round.` });
+    }
 
     if (room.isPalifico && room.firstBidOfRound) {
       room.palificoFace = f;
@@ -855,6 +861,11 @@ io.on('connection', socket => {
     if (room.phase !== 'playing' || room.firstBidOfRound) return;
     const challenger = room.players[room.currentPlayerIndex];
     if (!challenger || challenger.id !== socket.id) return;
+    // Scout restriction: you can't call Liar on the face you scouted this round.
+    if (!room.isFaceoff && !room.isPalifico && challenger.scoutedFace &&
+        room.currentBid && room.currentBid.face === challenger.scoutedFace) {
+      return socket.emit('bid_error', { message: `You scouted ${challenger.scoutedFace}s — you can't call Liar on this bid.` });
+    }
     processChallenge(challenger, room, roomId);
   });
 
@@ -898,10 +909,11 @@ io.on('connection', socket => {
       case 'scout': {
         if (!isCurrent) return;
         const face = parseInt(payload.face, 10);
-        if (!Number.isInteger(face) || face < 1 || face > 6) return;
+        if (!Number.isInteger(face) || face < 2 || face > 6) return; // can't scout 1s
         let scoutCount = 0;
         room.players.forEach(p => p.dice.forEach(d => { if (d === face) scoutCount++; }));
         player.item = null;
+        player.scoutedFace = face; // can't bid or call Liar on this face this round
         io.to(socket.id).emit('item_result', { itemType: 'scout', face, count: scoutCount });
         emit();
         break;
