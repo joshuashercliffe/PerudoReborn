@@ -1186,16 +1186,21 @@ body.dual-mode .player-chip { cursor: pointer; }
 .chip-lock-wild   { background: rgba(245,166,35,.25); color: var(--gold);    border: 1px solid rgba(245,166,35,.5); }
 .chip-lock-shield { background: rgba(99,179,237,.2);  color: #90cdf4;        border: 1px solid rgba(99,179,237,.4); }
 
-/* Item result overlay (peek / scout) */
+/* Item result overlay (peek / scout) — dismissable modal */
 #item-result-overlay {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 16px; padding: 18px 28px; z-index: 200;
-  box-shadow: var(--shadow); text-align: center;
-  animation: fadeIn .25s ease;
+  position: fixed; inset: 0; background: rgba(0,0,0,.82);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; padding: 20px; animation: fadeIn .2s ease;
 }
-.item-result-label { font-size: .88rem; color: var(--muted); margin-bottom: 10px; }
-.item-result-count { font-size: 2.4rem; font-weight: 900; color: var(--accent); }
+#item-result-overlay.hidden { display: none; }
+#item-result-panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 26px 30px; max-width: 360px; width: 100%;
+  box-shadow: var(--shadow); text-align: center;
+}
+#item-result-panel .btn { margin-top: 22px; }
+.item-result-label { font-size: .95rem; color: var(--text); margin-bottom: 14px; }
+.item-result-count { font-size: 3rem; font-weight: 900; color: var(--accent); line-height: 1; }
 .item-result-die { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
 /* Fake-piped die in reveal */
