@@ -1196,7 +1196,7 @@ body.dual-mode .player-chip { cursor: pointer; }
 }
 .item-result-label { font-size: .88rem; color: var(--muted); margin-bottom: 10px; }
 .item-result-count { font-size: 2.4rem; font-weight: 900; color: var(--accent); }
-.item-result-die { display: flex; justify-content: center; margin-top: 4px; }
+.item-result-die { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
 /* Fake-piped die in reveal */
 .die.fake-piped { outline: 2px solid var(--danger); outline-offset: 2px; border-radius: 6px; }
