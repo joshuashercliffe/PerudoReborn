@@ -57,8 +57,22 @@ socket1.on('server_stats', ({ games, players }) => {
 // ─── Per-player state ─────────────────────────────────────────────────────────
 // PS[0] = primary player; extra test players are pushed as PS[1], PS[2], …
 const PS = [
-  { socket: socket1, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null },
+  { socket: socket1, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null },
 ];
+
+const ITEM_META = {
+  peek:       { icon: '👁️',  name: 'Peek',        desc: 'See one of an opponent\'s dice secretly' },
+  scout:      { icon: '🔍',  name: 'Scout',       desc: 'See the true count of one face across all dice' },
+  reroll:     { icon: '🎲',  name: 'Reroll',      desc: 'Reroll up to 2 of your dice' },
+  wild:       { icon: '⭐',  name: 'Wild',        desc: 'One of your dice counts toward any bid this round' },
+  doubledown: { icon: '💥',  name: 'Double Down', desc: 'Call Liar — win or lose 2 dice instead of 1' },
+  shield:     { icon: '🛡️', name: 'Shield',      desc: 'Absorb your next die loss this round' },
+  swap:       { icon: '🔀',  name: 'Swap',        desc: 'Exchange your die count with another player' },
+  skip:       { icon: '⏭️', name: 'Skip',        desc: 'Pass your turn — current bid stays' },
+  fakepips:   { icon: '🎭',  name: 'Fake Pips',   desc: 'Plant a false die value on an opponent' },
+};
+
+let itemPickerPayload = {};
 let activeIdx     = 0;   // which player the UI is currently controlling
 let dualMode      = false;
 let testMode      = false;
@@ -499,7 +513,7 @@ document.getElementById('p2-name-input').addEventListener('keydown', e => {
 function initTestPlayer(name) {
   const idx    = PS.length;
   const socket = io();
-  PS.push({ socket, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null });
+  PS.push({ socket, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null });
 
   if (!dualMode) {
     dualMode = true;
@@ -529,10 +543,11 @@ function initTestPlayer(name) {
     renderLobby(state);
   });
 
-  socket.on('your_dice', ({ dice, revealedCount }) => {
+  socket.on('your_dice', ({ dice, revealedCount, item }) => {
     PS[idx].dice = dice;
     PS[idx].revealedCount = revealedCount ?? 0;
-    if (activeIdx === idx) { revealSel.clear(); dealMyDice(); applyDicePrivacy(); renderActionUI(); }
+    if (item !== undefined) PS[idx].item = item;
+    if (activeIdx === idx) { revealSel.clear(); dealMyDice(); applyDicePrivacy(); renderActionUI(); renderItemSection(); }
   });
 
   socket.on('ip_confirm_request', data => showIPConfirmOverlay(data, socket));
@@ -560,6 +575,7 @@ function switchPlayer(idx) {
   hideEl('ip-confirm-overlay');
   hideEl('ip-liar-overlay');
   hideEl('autoliar-confirm-overlay');
+  hideEl('item-picker-overlay');
   updateToggleLabels();
   if (document.getElementById('screen-lobby').classList.contains('active') && gs) {
     renderLobby(gs);
@@ -914,13 +930,16 @@ socket1.on('round_start', state => {
   PS[0].revealedCount = 0;
   PS[0].autoLiar  = (state.autoLiarPlayerId === PS[0].id);
   PS[0].lockedBid = null;
-  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; } });
+  PS[0].item      = null; // will be set by your_dice
+  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; ps.item = null; } });
   revealSel.clear();
   lbQty = 1; lbFace = 2;
   diceRevealed = false;
   ipChallengePending = false;
   hideEl('ip-confirm-overlay');
   hideEl('autoliar-confirm-overlay');
+  hideEl('item-picker-overlay');
+  hideEl('item-result-overlay');
   bidHistory = [];
   showScreen('screen-game');
   renderGame();
@@ -958,10 +977,11 @@ function showFaceoffAnnounce() {
   setTimeout(() => hideEl(overlay), 2500);
 }
 
-socket1.on('your_dice', ({ dice, revealedCount }) => {
+socket1.on('your_dice', ({ dice, revealedCount, item }) => {
   PS[0].dice = dice;
   PS[0].revealedCount = revealedCount ?? 0;
-  if (activeIdx === 0) { revealSel.clear(); dealMyDice(); renderActionUI(); }
+  if (item !== undefined) PS[0].item = item;
+  if (activeIdx === 0) { revealSel.clear(); dealMyDice(); renderActionUI(); renderItemSection(); }
   applyDicePrivacy();
 });
 
@@ -975,6 +995,7 @@ function renderGame() {
   renderStatus();
   renderMyDice();
   renderActionUI();
+  renderItemSection();
   renderAutoLiarBtn();
   renderLockBidSection();
   renderReactionButtons();
@@ -999,9 +1020,12 @@ function renderPlayersBar() {
     const hasAutoliar = pl.id === gs.autoLiarPlayerId;
     const hasAutobid  = pl.id === gs.autoBidPlayerId;
     const locks = (hasAutobid ? '<span class="chip-lock chip-lock-bid">AB</span>' : '')
-                + (hasAutoliar ? '<span class="chip-lock chip-lock-liar">AL</span>' : '');
+                + (hasAutoliar ? '<span class="chip-lock chip-lock-liar">AL</span>' : '')
+                + (pl.wildActive ? '<span class="chip-lock chip-lock-wild">W</span>' : '')
+                + (pl.shieldActive ? '<span class="chip-lock chip-lock-shield">🛡</span>' : '');
+    const itemDot = pl.hasItem ? '<span class="chip-item-dot" title="Has an item"></span>' : '';
     return `<div class="player-chip${active ? ' is-active' : ''}${me ? ' is-me' : ''}${showIdle ? ' disconnected' : ''}" data-id="${esc(pl.id)}">
-      <div class="chip-name" title="${esc(pl.name)}">${esc(pl.name)}${me ? ' ★' : ''}</div>
+      <div class="chip-name" title="${esc(pl.name)}">${esc(pl.name)}${me ? ' ★' : ''}${itemDot}</div>
       <div class="chip-dice">${dice}${locks ? `<span class="chip-locks">${locks}</span>` : ''}</div>
       ${canKick ? `<button class="btn-kick" data-id="${esc(pl.id)}">Kick</button>` : ''}
     </div>`;
@@ -1288,6 +1312,211 @@ function renderActionUI() {
   }
   refreshBidControls();
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Items
+// ─────────────────────────────────────────────────────────────────────────────
+function renderItemSection() {
+  const myPs = p();
+  const item = myPs?.item;
+  const section = document.getElementById('item-section');
+  if (!item || !gs || gs.phase !== 'playing') { hideEl(section); return; }
+  const meta = ITEM_META[item];
+  if (!meta) { hideEl(section); return; }
+  document.getElementById('item-card-icon').textContent = meta.icon;
+  document.getElementById('item-card-name').textContent = meta.name;
+  document.getElementById('item-card-desc').textContent = meta.desc;
+  const isMyTurn = gs.currentPlayerId === pid();
+  let canUse;
+  switch (item) {
+    case 'shield': canUse = true; break;
+    case 'skip':   canUse = isMyTurn; break;
+    case 'doubledown': canUse = isMyTurn && !gs.firstBidOfRound && !!gs.currentBid && !gs.isInPerson; break;
+    default: canUse = isMyTurn && !gs.isInPerson;
+  }
+  document.getElementById('btn-use-item').disabled = !canUse;
+  showEl(section);
+}
+
+function openItemPicker(itemType) {
+  const meta = ITEM_META[itemType];
+  itemPickerPayload = {};
+  document.getElementById('item-picker-title').textContent = `${meta.icon} ${meta.name}`;
+  const content = document.getElementById('item-picker-content');
+  content.innerHTML = '';
+  const confirmBtn = document.getElementById('btn-item-confirm');
+  confirmBtn.disabled = true;
+  const setReady = () => { confirmBtn.disabled = false; };
+
+  switch (itemType) {
+    case 'shield':
+      document.getElementById('item-picker-subtitle').textContent = 'Activate your shield. Your next die loss this round is absorbed.';
+      setReady();
+      break;
+    case 'wild':
+      document.getElementById('item-picker-subtitle').textContent = 'One of your dice will count toward any bid this round — +1 guaranteed in the tally.';
+      setReady();
+      break;
+    case 'skip':
+      document.getElementById('item-picker-subtitle').textContent = 'Pass your turn. The current bid stays. The next player deals with it.';
+      setReady();
+      break;
+    case 'doubledown':
+      document.getElementById('item-picker-subtitle').textContent = 'Declare Double Down — then call Liar. Win or lose 2 dice instead of 1.';
+      setReady();
+      break;
+    case 'peek': {
+      document.getElementById('item-picker-subtitle').textContent = 'Pick an opponent to secretly peek at one of their dice.';
+      const targets = gs.players.filter(pl => pl.id !== pid() && pl.diceCount > 0);
+      content.innerHTML = '<div class="ip-accused-list">' + targets.map(pl =>
+        `<button class="ip-accused-btn" data-id="${esc(pl.id)}">${esc(pl.name)}</button>`
+      ).join('') + '</div>';
+      content.addEventListener('click', e => {
+        const btn = e.target.closest('.ip-accused-btn');
+        if (!btn) return;
+        content.querySelectorAll('.ip-accused-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        itemPickerPayload.targetId = btn.dataset.id;
+        setReady();
+      });
+      break;
+    }
+    case 'swap': {
+      document.getElementById('item-picker-subtitle').textContent = 'Pick a player to swap die counts with. Both get fresh dice at the new count.';
+      const targets = gs.players.filter(pl => pl.id !== pid() && pl.diceCount > 0);
+      content.innerHTML = '<div class="ip-accused-list">' + targets.map(pl =>
+        `<button class="ip-accused-btn" data-id="${esc(pl.id)}">${esc(pl.name)} (${pl.diceCount}🎲)</button>`
+      ).join('') + '</div>';
+      content.addEventListener('click', e => {
+        const btn = e.target.closest('.ip-accused-btn');
+        if (!btn) return;
+        content.querySelectorAll('.ip-accused-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        itemPickerPayload.targetId = btn.dataset.id;
+        setReady();
+      });
+      break;
+    }
+    case 'scout': {
+      document.getElementById('item-picker-subtitle').textContent = 'Pick a face to see its true total count across all dice.';
+      content.innerHTML = '<div id="item-face-picker" class="face-picker-row"></div>';
+      const fp = content.querySelector('#item-face-picker');
+      fp.innerHTML = [1,2,3,4,5,6].map(f => `<button class="face-btn item-face-btn" data-face="${f}">${makeDie(f)}</button>`).join('');
+      fp.addEventListener('click', e => {
+        const btn = e.target.closest('.item-face-btn');
+        if (!btn) return;
+        fp.querySelectorAll('.item-face-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        itemPickerPayload.face = parseInt(btn.dataset.face, 10);
+        setReady();
+      });
+      break;
+    }
+    case 'reroll': {
+      document.getElementById('item-picker-subtitle').textContent = 'Pick up to 2 dice to reroll. Click dice to toggle selection.';
+      const myDice = pdice();
+      const selectedIdxs = new Set();
+      const render = () => {
+        content.innerHTML = '<div class="item-reroll-dice">' + myDice.map((d, i) =>
+          `<button class="reveal-die-btn${selectedIdxs.has(i) ? ' selected' : ''}" data-i="${i}">${makeDie(d, 'tiny')}</button>`
+        ).join('') + '</div>';
+        content.querySelectorAll('[data-i]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.i, 10);
+            if (selectedIdxs.has(i)) { selectedIdxs.delete(i); }
+            else if (selectedIdxs.size < 2) { selectedIdxs.add(i); }
+            itemPickerPayload.indices = [...selectedIdxs];
+            confirmBtn.disabled = selectedIdxs.size === 0;
+            render();
+          });
+        });
+      };
+      render();
+      break;
+    }
+    case 'fakepips': {
+      document.getElementById('item-picker-subtitle').textContent = 'Pick a target and a face to plant on one of their hidden dice.';
+      const targets = gs.players.filter(pl => pl.id !== pid() && pl.diceCount > 0);
+      let selTarget = null, selFp = null;
+      const check = () => { confirmBtn.disabled = !(selTarget && selFp); };
+      content.innerHTML =
+        '<div class="ip-accused-list" id="fp-targets">' +
+        targets.map(pl => `<button class="ip-accused-btn" data-id="${esc(pl.id)}">${esc(pl.name)}</button>`).join('') +
+        '</div>' +
+        '<div style="margin-top:12px"><div class="section-label" style="margin-bottom:6px">Plant this face:</div>' +
+        '<div id="fp-face-picker" class="face-picker-row">' +
+        [1,2,3,4,5,6].map(f => `<button class="face-btn item-face-btn" data-face="${f}">${makeDie(f)}</button>`).join('') +
+        '</div></div>';
+      content.querySelector('#fp-targets').addEventListener('click', e => {
+        const btn = e.target.closest('.ip-accused-btn');
+        if (!btn) return;
+        content.querySelectorAll('.ip-accused-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selTarget = btn.dataset.id;
+        itemPickerPayload.targetId = selTarget;
+        check();
+      });
+      content.querySelector('#fp-face-picker').addEventListener('click', e => {
+        const btn = e.target.closest('.item-face-btn');
+        if (!btn) return;
+        content.querySelectorAll('.item-face-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selFp = parseInt(btn.dataset.face, 10);
+        itemPickerPayload.face = selFp;
+        check();
+      });
+      break;
+    }
+  }
+  showEl('item-picker-overlay');
+}
+
+document.getElementById('btn-use-item').addEventListener('click', () => {
+  const item = p()?.item;
+  if (!item) return;
+  openItemPicker(item);
+});
+
+document.getElementById('btn-item-cancel').addEventListener('click', () => {
+  hideEl('item-picker-overlay');
+  itemPickerPayload = {};
+});
+
+document.getElementById('btn-item-confirm').addEventListener('click', () => {
+  const item = p()?.item;
+  if (!item) return;
+  hideEl('item-picker-overlay');
+  p().socket.emit('use_item', { itemType: item, ...itemPickerPayload });
+  itemPickerPayload = {};
+});
+
+socket1.on('item_used', ({ playerId, playerName, itemType, targetName, gameState }) => {
+  if (gameState) { gs = gameState; renderGame(); }
+  if (playerId === pid()) { p().item = null; renderItemSection(); }
+  const meta = ITEM_META[itemType] ?? { icon: '✨', name: itemType };
+  let msg = `${meta.icon} ${playerName} used ${meta.name}`;
+  if (targetName) msg += ` on ${targetName}`;
+  toast(msg);
+});
+
+socket1.on('item_result', ({ itemType, targetName, faceValue, face, count }) => {
+  const content = document.getElementById('item-result-content');
+  if (itemType === 'peek') {
+    content.innerHTML = `<div class="item-result-peek">
+      <div class="item-result-label">👁️ You peeked at ${esc(targetName)}</div>
+      <div class="item-result-die">${makeDie(faceValue, 'large')}</div>
+    </div>`;
+  } else if (itemType === 'scout') {
+    content.innerHTML = `<div class="item-result-scout">
+      <div class="item-result-label">🔍 Total ${FACE_NAME[face] ?? face}s in play:</div>
+      <div class="item-result-count">${count}</div>
+    </div>`;
+  }
+  showEl('item-result-overlay');
+  setTimeout(() => hideEl('item-result-overlay'), 3500);
+});
+
+socket1.on('item_error', ({ message }) => toast(message, 'error'));
 
 // Reveal & Reroll: render the player's dice as a selector (locked dice first,
 // then selectable secret dice). Hidden unless the mode is active in Standard.
@@ -1596,7 +1825,7 @@ document.getElementById('btn-next-round').addEventListener('click', () => {
 });
 
 function showReveal(r) {
-  const { revealedDice, bid, count, bidMet, isPeak, diceDelta, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName, calza, exact, callerName } = r;
+  const { revealedDice, bid, count, bidMet, isPeak, diceDelta, doubleDownActive, shieldAbsorbed, isPalifico, isFaceoff, gameMode, bidderName, challengerName, loserName, calza, exact, callerName } = r;
 
   let playersRowHtml, bottomRowHtml;
 
@@ -1623,15 +1852,20 @@ function showReveal(r) {
       </div>`;
   } else {
     playersRowHtml = revealedDice.map(pd => {
-      const color = PLAYER_COLORS[pd.colorIndex ?? 0];
-      const isMe  = pd.id === pid();
-      const diceHtml = pd.dice.map(d => {
-        const isMatch = d === bid.face || (!isPalifico && d === 1 && bid.face !== 1);
-        return makeDie(d, `small${isMatch ? ' highlighted' : ' dim'}`);
+      const color    = PLAYER_COLORS[pd.colorIndex ?? 0];
+      const isMe     = pd.id === pid();
+      const fakePip  = pd.fakePip;
+      const diceHtml = pd.dice.map((d, i) => {
+        const isMatch  = d === bid.face || (!isPalifico && d === 1 && bid.face !== 1);
+        const isFaked  = fakePip && i === fakePip.dieIndex;
+        return makeDie(d, `small${isMatch ? ' highlighted' : ' dim'}${isFaked ? ' fake-piped' : ''}`);
       }).join('');
+      const wildBadge   = pd.wildActive ? ' <span class="chip-lock chip-lock-wild" style="font-size:.65rem">W</span>' : '';
+      const fakePipNote = fakePip ? `<div class="fake-pip-note">🎭 one die was planted (was ${makeDie(fakePip.originalFace,'tiny')})</div>` : '';
       return `<div class="reveal-player-section">
-        <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}</div>
+        <div class="reveal-player-name" style="color:${color}">${esc(pd.name)}${isMe ? ' ★' : ''}${wildBadge}</div>
         <div class="reveal-player-dice">${diceHtml}</div>
+        ${fakePipNote}
       </div>`;
     }).join('');
     const bidDiceHtml = Array.from({ length: bid.quantity }, () => makeDie(bid.face, 'small')).join('');
@@ -1647,10 +1881,10 @@ function showReveal(r) {
   if (calza) {
     const gainWord = gameMode === 'reverse' ? 'sheds a die' : 'wins a die back';
     const lossWord = gameMode === 'reverse' ? 'gains a die' : 'loses a die';
-    outcomeClass = exact ? 'win' : 'lose';
+    outcomeClass = exact ? 'win' : (shieldAbsorbed ? 'shield' : 'lose');
     outcomeText = exact
       ? `✓ CALZA! Exactly ${count} — <strong>${esc(callerName)}</strong> ${gainWord}`
-      : `✗ Not exact — there were ${count}, bid was ${bid.quantity} — <strong>${esc(callerName)}</strong> ${lossWord}`;
+      : `✗ Not exact — there were ${count}, bid was ${bid.quantity} — <strong>${esc(callerName)}</strong> ${shieldAbsorbed ? '<span class="shield-saved">🛡️ shielded!</span>' : lossWord}`;
     const calzaQuips = exact ? [
       `🎯 ${esc(callerName)} called the bluff's bluff`,
       `🎯 ${esc(callerName)} has ice in their veins`,
@@ -1687,19 +1921,24 @@ function showReveal(r) {
     flavorLine = loserQuips[Math.floor(Math.random() * loserQuips.length)];
 
     const diceWord = (diceDelta ?? 1) === 1 ? 'die' : 'dice';
+    const shieldSuffix = shieldAbsorbed ? ' — <span class="shield-saved">🛡️ shielded!</span>' : '';
+    const ddPrefix = doubleDownActive ? '💥 DOUBLED — ' : '';
     const diceLossText = gameMode === 'reverse'
-      ? ` — gains ${diceDelta ?? 1} ${diceWord}`
-      : ` — loses ${diceDelta ?? 1} ${diceWord}`;
+      ? ` — gains ${diceDelta ?? 1} ${diceWord}${shieldSuffix}`
+      : ` — loses ${diceDelta ?? 1} ${diceWord}${shieldSuffix}`;
     outcomeClass = bidMet ? 'lose' : 'win';
+    if (shieldAbsorbed) outcomeClass = 'shield';
     outcomeText = isFaceoff
       ? (bidMet
-          ? `✗ Call unsuccessful — sum is ${count} ≥ ${bid.quantity}, <strong>${esc(challengerName)}</strong> loses`
-          : `✓ Call successful — sum is ${count}, bid was ${bid.quantity}, <strong>${esc(bidderName)}</strong> loses`)
+          ? `✗ ${ddPrefix}Call unsuccessful — sum is ${count} ≥ ${bid.quantity}, <strong>${esc(challengerName)}</strong> loses`
+          : `✓ ${ddPrefix}Call successful — sum is ${count}, bid was ${bid.quantity}, <strong>${esc(bidderName)}</strong> loses`)
       : (bidMet
-          ? `✗ Call unsuccessful — <strong>${esc(challengerName)}</strong>${diceLossText}`
-          : `✓ Call successful — <strong>${esc(bidderName)}</strong>${diceLossText}`);
+          ? `✗ ${ddPrefix}Call unsuccessful — <strong>${esc(challengerName)}</strong>${diceLossText}`
+          : `✓ ${ddPrefix}Call successful — <strong>${esc(bidderName)}</strong>${diceLossText}`);
   }
 
+  const shieldCalzaNote = (!calza && shieldAbsorbed) ? '' :
+    (calza && shieldAbsorbed) ? `<div class="reveal-count-line">🛡️ Shield absorbed the loss</div>` : '';
   const countLine = isFaceoff ? '' :
     `<div class="reveal-count-line">There were actually <strong>${count}</strong> ${FACE_NAME[bid.face]}</div>`;
   const peakLine = (!calza && !isFaceoff && isPeak)
@@ -1710,6 +1949,7 @@ function showReveal(r) {
     <div class="reveal-players-row">${playersRowHtml}</div>
     ${countLine}
     ${peakLine}
+    ${shieldCalzaNote}
     ${bottomRowHtml}`;
 
   document.getElementById('reveal-summary').innerHTML = `
