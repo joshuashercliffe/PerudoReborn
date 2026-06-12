@@ -66,7 +66,7 @@ const ITEM_META = {
   reroll:     { icon: '🎲',  name: 'Reroll',      desc: 'Reroll up to 2 of your dice' },
   wild:       { icon: '⭐',  name: 'Wild',        desc: 'One of your dice counts toward any bid this round' },
   doubledown: { icon: '💥',  name: 'Double Down', desc: 'Call Liar — win or lose 2 dice instead of 1' },
-  shield:     { icon: '🛡️', name: 'Shield',      desc: 'Absorb your next die loss this round' },
+  shield:     { icon: '🛡️', name: 'Shield',      desc: 'Absorb your die loss on the current bid — expires when a new bid is made' },
   swap:       { icon: '🔀',  name: 'Swap',        desc: 'Exchange your die count with another player' },
   skip:       { icon: '⏭️', name: 'Skip',        desc: 'Pass your turn — current bid stays' },
   fakepips:   { icon: '🎭',  name: 'Fake Pips',   desc: 'Plant a false die value on an opponent' },
@@ -1349,7 +1349,7 @@ function renderItemSection() {
   const isMyTurn = gs.currentPlayerId === pid();
   let canUse;
   switch (item) {
-    case 'shield': canUse = true; break;
+    case 'shield': canUse = !!gs.currentBid && !gs.isInPerson; break;
     case 'skip':   canUse = isMyTurn; break;
     case 'doubledown': canUse = isMyTurn && !gs.firstBidOfRound && !!gs.currentBid && !gs.isInPerson; break;
     default: canUse = isMyTurn && !gs.isInPerson;
@@ -1372,7 +1372,7 @@ function openItemPicker(itemType) {
 
   switch (itemType) {
     case 'shield':
-      document.getElementById('item-picker-subtitle').textContent = 'Activate your shield. Your next die loss this round is absorbed.';
+      document.getElementById('item-picker-subtitle').textContent = 'Shield the current bid. If you would lose a die when it is resolved, it is absorbed. Expires the moment a new bid is made.';
       setReady();
       break;
     case 'wild':
