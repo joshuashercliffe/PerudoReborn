@@ -1168,8 +1168,34 @@ body.dual-mode .player-chip { cursor: pointer; }
   z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,.5);
   white-space: normal;
 }
-#item-header-popup-name { font-size: .88rem; font-weight: 700; color: var(--gold); margin-bottom: 4px; }
-#item-header-popup-desc { font-size: .78rem; color: var(--muted); }
+#item-header-popup-list { display: flex; flex-direction: column; gap: 10px; }
+.item-popup-row { display: flex; gap: 8px; align-items: flex-start; }
+.item-popup-icon { font-size: 1.1rem; line-height: 1.2; flex-shrink: 0; }
+.item-popup-info { display: flex; flex-direction: column; }
+.item-popup-name { font-size: .82rem; font-weight: 700; color: var(--gold); }
+.item-popup-desc { font-size: .74rem; color: var(--muted); }
+
+/* Item chooser (when holding more than one) */
+.item-chooser { display: flex; flex-direction: column; gap: 10px; }
+.item-chooser-btn {
+  display: flex; gap: 12px; align-items: center; text-align: left;
+  background: rgba(245,166,35,.1); border: 1px solid rgba(245,166,35,.35);
+  border-radius: 12px; padding: 12px 14px; cursor: pointer; color: var(--text);
+  transition: background .15s, transform .1s;
+}
+.item-chooser-btn:hover:not(:disabled) { background: rgba(245,166,35,.22); transform: translateY(-1px); }
+.item-chooser-btn:disabled { opacity: .4; cursor: not-allowed; }
+.item-chooser-icon { font-size: 1.7rem; flex-shrink: 0; }
+.item-chooser-info { display: flex; flex-direction: column; gap: 2px; }
+.item-chooser-name { font-size: .92rem; font-weight: 800; }
+.item-chooser-desc { font-size: .76rem; color: var(--muted); }
+
+/* Double Down bid button */
+.btn-doubledown { background: #b91c1c; color: #fff; border: 2px solid #fca5a5; }
+.btn-doubledown:hover:not(:disabled) { transform: translateY(-2px); border-color: #fecaca; box-shadow: 0 8px 24px rgba(185,28,28,.5); }
+
+/* Reveal: earned power-up note */
+.reveal-earned { color: var(--gold); font-weight: 700; }
 
 /* Use Power Up row in game center */
 #item-use-row { width: 100%; }
