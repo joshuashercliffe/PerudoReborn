@@ -55,7 +55,20 @@ const ROOM_WORDS = [
   'ZAP','ZED','ZEN'
 ];
 const ROOM_DIGITS = '23456789';
-const ITEM_POOL   = ['peek','scout','reroll','wild','doubledown','shield','swap','skip','fakepips'];
+const ITEM_POOL   = ['peek','scout','reroll','wild','shield','swap','skip','fakepips'];
+const MAX_ITEMS   = 2; // inventory cap; gaining a 3rd discards the oldest
+
+function randomItem() { return ITEM_POOL[Math.floor(Math.random() * ITEM_POOL.length)]; }
+function grantItem(player, type) {
+  if (!player.items) player.items = [];
+  player.items.push(type);
+  while (player.items.length > MAX_ITEMS) player.items.shift(); // FIFO: drop oldest
+  return type;
+}
+function removeItem(player, type) {
+  const i = player.items ? player.items.indexOf(type) : -1;
+  if (i >= 0) player.items.splice(i, 1);
+}
 
 function generateRoomId() {
   let id;
@@ -112,7 +125,7 @@ function publicState(room) {
       id: p.id, name: p.name, diceCount: p.diceCount,
       connected: p.connected, colorIndex: p.colorIndex ?? 0,
       revealedDice: p.revealedDice ?? [],
-      hasItem: !!p.item, shieldActive: !!p.shieldActive, wildActive: !!p.wildActive,
+      itemCount: (p.items?.length || 0), shieldActive: !!p.shieldActive, wildActive: !!p.wildActive,
     })),
     currentPlayerIndex: room.currentPlayerIndex,
     currentPlayerId:    cp?.id   ?? null,
@@ -289,15 +302,16 @@ function startRound(room, roomId) {
     }
   }
 
-  const itemShuffled = room.itemsEnabled ? [...ITEM_POOL].sort(() => Math.random() - 0.5) : [];
-  room.players.forEach((p, i) => {
+  room.players.forEach((p) => {
     p.revealedDice = []; p.dice = roll(p.diceCount);
-    p.item = itemShuffled.length ? itemShuffled[i % itemShuffled.length] : null;
-    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null; p.pranked = false;
+    if (!p.items) p.items = [];
+    // Items carry over between rounds; deal one free per round (FIFO cap applies).
+    if (room.itemsEnabled) grantItem(p, randomItem());
+    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false;
   });
 
   io.to(roomId).emit('round_start', publicState(room));
-  room.players.forEach(p => { io.to(p.id).emit('your_dice', { dice: p.dice, revealedCount: 0, item: p.item }); });
+  room.players.forEach(p => { io.to(p.id).emit('your_dice', { dice: p.dice, revealedCount: 0, items: p.items }); });
 }
 
 // ─────────────────────────────────────────
@@ -348,17 +362,27 @@ function processChallenge(challenger, room, roomId) {
     ? (bidMet ? count - bid.quantity + 1 : bid.quantity - count)
     : 1;
 
-  const doubleDownActive = !!challenger.doubleDown;
-  if (doubleDownActive) { rawDelta *= 2; challenger.doubleDown = false; }
+  // Double Down: the BIDDER staked their bid. If their bid was wrong (they
+  // lose), the penalty doubles. If their bid was right (challenger loses),
+  // the bidder earns a random power-up instead.
+  const doubleDownActive = !!bidder.doubleDownBid;
+  if (doubleDownActive && loser.id === bidder.id) rawDelta *= 2;
 
   let diceDelta = Math.min(rawDelta, loser.diceCount);
 
   const shieldAbsorbed = !!loser.shieldActive;
   if (shieldAbsorbed) { diceDelta = 0; loser.shieldActive = false; }
 
+  let earnedItem = null;
+  if (doubleDownActive && bidMet && room.itemsEnabled) {
+    earnedItem = grantItem(bidder, randomItem());
+  }
+  if (doubleDownActive) bidder.doubleDownBid = false;
+
   const result = {
     revealedDice, bid, count, bidMet,
     isPeak, diceDelta, doubleDownActive, shieldAbsorbed,
+    earnedItem, earnedBy: earnedItem ? bidder.name : null,
     isPalifico:     room.isPalifico,
     isFaceoff:      room.isFaceoff,
     gameMode:       room.gameMode,
@@ -601,6 +625,7 @@ io.on('connection', socket => {
       dice: player.dice,
       revealedCount: player.revealedDice?.length ?? 0,
       pranked: !!player.pranked,
+      items: player.items ?? [],
       phase: room.phase
     });
 
@@ -754,7 +779,7 @@ io.on('connection', socket => {
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
     room.players.forEach((p, i) => {
       p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i;
-      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null; p.pranked = false;
+      p.items = []; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false;
     });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
@@ -763,7 +788,7 @@ io.on('connection', socket => {
   });
 
   // ── Make bid ──────────────────────────
-  socket.on('make_bid', ({ quantity, face, reveal }) => {
+  socket.on('make_bid', ({ quantity, face, reveal, doubleDown }) => {
     const ctx = getRoom(); if (!ctx) return;
     const { room, roomId } = ctx;
     if (room.phase !== 'playing') return;
@@ -802,17 +827,22 @@ io.on('connection', socket => {
     }
 
     // A new bid supersedes the standing bid, so any shield armed against an
-    // earlier bid window now expires — shields only cover a single bid.
+    // earlier bid window now expires — shields only cover a single bid. A prior
+    // Double Down bid is also superseded (it only pays out if challenged).
     room.players.forEach(pl => {
       if (pl.shieldActive && pl.shieldArmedAt != null && pl.shieldArmedAt <= room.bidCount) {
         pl.shieldActive = false; pl.shieldArmedAt = null;
       }
+      pl.doubleDownBid = false;
     });
     room.bidCount = (room.bidCount || 0) + 1;
 
     room.lastBidderIndex    = room.currentPlayerIndex;
     room.currentBid         = { quantity: qty, face: room.isFaceoff ? null : f };
     room.firstBidOfRound    = false;
+    // Double Down: stake this bid. If challenged and wrong → lose 2 dice;
+    // if challenged and right → earn a random power-up. Requires items on.
+    if (doubleDown && room.itemsEnabled) cp.doubleDownBid = true;
     if (room.autoBidPlayerId === socket.id) room.autoBidPlayerId = null;
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
 
@@ -894,7 +924,7 @@ io.on('connection', socket => {
     const player = room.players.find(pl => pl.id === socket.id);
     if (!player) return;
     const { itemType } = payload ?? {};
-    if (!player.item || player.item !== itemType) return;
+    if (!player.items || !player.items.includes(itemType)) return;
     const isCurrent = room.players[room.currentPlayerIndex]?.id === socket.id;
     const emit = (extra = {}) => io.to(roomId).emit('item_used', { playerId: socket.id, playerName: player.name, itemType, ...extra, gameState: publicState(room) });
 
@@ -907,7 +937,7 @@ io.on('connection', socket => {
         const howMany = Math.max(1, Math.floor(t.dice.length / 2));
         const idxs = [...t.dice.keys()].sort(() => Math.random() - 0.5).slice(0, howMany);
         const faces = idxs.map(i => t.dice[i]);
-        player.item = null;
+        removeItem(player, itemType);
         io.to(socket.id).emit('item_result', { itemType: 'peek', targetName: t.name, faces });
         emit({ targetName: t.name });
         break;
@@ -918,7 +948,7 @@ io.on('connection', socket => {
         if (!Number.isInteger(face) || face < 2 || face > 6) return; // can't scout 1s
         let scoutCount = 0;
         room.players.forEach(p => p.dice.forEach(d => { if (d === face) scoutCount++; }));
-        player.item = null;
+        removeItem(player, itemType);
         player.scoutedFace = face; // can't bid or call Liar on this face this round
         io.to(socket.id).emit('item_result', { itemType: 'scout', face, count: scoutCount });
         emit();
@@ -930,7 +960,7 @@ io.on('connection', socket => {
           .filter(i => Number.isInteger(i) && i >= 0 && i < player.dice.length))].slice(0, 2);
         if (!idxs.length) return;
         idxs.forEach(i => { player.dice[i] = roll(1)[0]; });
-        player.item = null;
+        removeItem(player, itemType);
         io.to(socket.id).emit('your_dice', { dice: player.dice, revealedCount: player.revealedDice.length });
         emit();
         break;
@@ -938,14 +968,7 @@ io.on('connection', socket => {
       case 'wild': {
         if (!isCurrent || room.isFaceoff) return;
         player.wildActive = true;
-        player.item = null;
-        emit();
-        break;
-      }
-      case 'doubledown': {
-        if (!isCurrent || room.firstBidOfRound || !room.currentBid) return;
-        player.doubleDown = true;
-        player.item = null;
+        removeItem(player, itemType);
         emit();
         break;
       }
@@ -955,7 +978,7 @@ io.on('connection', socket => {
         if (!room.currentBid) return;
         player.shieldActive = true;
         player.shieldArmedAt = room.bidCount;
-        player.item = null;
+        removeItem(player, itemType);
         emit();
         break;
       }
@@ -969,7 +992,7 @@ io.on('connection', socket => {
         player.dice = roll(player.diceCount);
         st.dice = roll(st.diceCount);
         player.revealedDice = []; st.revealedDice = [];
-        player.item = null;
+        removeItem(player, itemType);
         io.to(socket.id).emit('your_dice', { dice: player.dice, revealedCount: 0 });
         io.to(st.id).emit('your_dice', { dice: st.dice, revealedCount: 0 });
         emit({ targetName: st.name });
@@ -977,7 +1000,7 @@ io.on('connection', socket => {
       }
       case 'skip': {
         if (!isCurrent) return;
-        player.item = null;
+        removeItem(player, itemType);
         room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
         if (room.autoBidPlayerId === socket.id) room.autoBidPlayerId = null;
         emit();
@@ -994,7 +1017,7 @@ io.on('connection', socket => {
         if (!isCurrent) return;
         const ft = room.players.find(p => p.id === payload.targetId);
         if (!ft || ft.id === socket.id || !ft.dice.length) return;
-        player.item = null;
+        removeItem(player, itemType);
         ft.pranked = true; // for reconnect re-sync
         // Cosmetic prank: stamp a big black pip over the victim's own dice so
         // they misread their hand. Real values are untouched; truth shows at reveal.
