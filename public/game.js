@@ -57,7 +57,7 @@ socket1.on('server_stats', ({ games, players }) => {
 // ─── Per-player state ─────────────────────────────────────────────────────────
 // PS[0] = primary player; extra test players are pushed as PS[1], PS[2], …
 const PS = [
-  { socket: socket1, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null, scoutedFace: null },
+  { socket: socket1, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null, scoutedFace: null, pranked: false },
 ];
 
 const ITEM_META = {
@@ -69,7 +69,7 @@ const ITEM_META = {
   shield:     { icon: '🛡️', name: 'Shield',      desc: 'Absorb your die loss on the current bid — expires when a new bid is made' },
   swap:       { icon: '🔀',  name: 'Swap',        desc: 'Exchange your die count with another player' },
   skip:       { icon: '⏭️', name: 'Skip',        desc: 'Pass your turn — current bid stays' },
-  fakepips:   { icon: '🎭',  name: 'Fake Pips',   desc: 'Plant a false die value on an opponent' },
+  fakepips:   { icon: '🎭',  name: 'Fake Pips',   desc: 'Stamp a big black pip on every one of an opponent\'s dice — they\'ll misread their hand' },
 };
 
 let itemPickerPayload = {};
@@ -267,7 +267,7 @@ socket1.on('joined_lobby', state => {
   }
 });
 
-socket1.on('rejoined', ({ sessionToken, roomId, state, dice, revealedCount, phase }) => {
+socket1.on('rejoined', ({ sessionToken, roomId, state, dice, revealedCount, pranked, phase }) => {
   localStorage.setItem('perudoSession', sessionToken);
   if (roomId) currentRoomId = roomId;
   PS[0].id   = socket1.id;
@@ -275,6 +275,7 @@ socket1.on('rejoined', ({ sessionToken, roomId, state, dice, revealedCount, phas
   PS[0].name = state.players.find(pl => pl.id === PS[0].id)?.name ?? null;
   PS[0].dice = dice || [];
   PS[0].revealedCount = revealedCount ?? 0;
+  PS[0].pranked = !!pranked;
 
   if (phase === 'lobby') {
     showScreen('screen-lobby');
@@ -524,7 +525,7 @@ document.getElementById('p2-name-input').addEventListener('keydown', e => {
 function initTestPlayer(name) {
   const idx    = PS.length;
   const socket = io();
-  PS.push({ socket, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null, scoutedFace: null });
+  PS.push({ socket, id: null, name: null, dice: [], revealedCount: 0, autoLiar: false, lockedBid: null, item: null, scoutedFace: null, pranked: false });
 
   if (!dualMode) {
     dualMode = true;
@@ -562,6 +563,8 @@ function initTestPlayer(name) {
   });
 
   socket.on('item_result', d => showItemResult(d, idx));
+
+  socket.on('fake_pips_drawn', () => applyFakePips(idx));
 
   socket.on('bid_error', ({ message }) => toast(`P${idx + 1}: ${message}`, 'error'));
 
@@ -947,7 +950,8 @@ socket1.on('round_start', state => {
   PS[0].lockedBid = null;
   PS[0].item      = null; // will be set by your_dice
   PS[0].scoutedFace = null;
-  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; ps.item = null; ps.scoutedFace = null; } });
+  PS[0].pranked   = false;
+  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; ps.item = null; ps.scoutedFace = null; ps.pranked = false; } });
   revealSel.clear();
   lbQty = 1; lbFace = 2;
   diceRevealed = false;
@@ -1197,9 +1201,16 @@ function renderMyDice() {
   const container = document.getElementById('my-dice');
   const wasCluster = container.classList.contains('ip-cluster');
   container.innerHTML = [...pdice()].sort((a, b) => a - b).map(d => make3DDie(d)).join('');
+  applyPrank(container);
   if (wasCluster) {
     positionIPDice(container, [...container.querySelectorAll('.die3-wrap')]);
   }
+}
+
+// Fake Pips prank: stamp a big black center pip over each of my dice.
+function applyPrank(container) {
+  if (!p()?.pranked) return;
+  container.querySelectorAll('.die3-wrap').forEach(w => w.classList.add('pranked'));
 }
 
 function dealMyDice() {
@@ -1214,6 +1225,7 @@ function dealMyDice() {
   container.innerHTML = finalDice.map(() =>
     `<div class="die3-wrap"><div class="die3">${facesHtml}</div></div>`
   ).join('');
+  applyPrank(container);
 
   const cubes = [...container.querySelectorAll('.die3')];
   const wraps = [...container.querySelectorAll('.die3-wrap')];
@@ -1462,35 +1474,18 @@ function openItemPicker(itemType) {
       break;
     }
     case 'fakepips': {
-      document.getElementById('item-picker-subtitle').textContent = 'Pick a target and a face to plant on one of their hidden dice.';
+      document.getElementById('item-picker-subtitle').textContent = 'Pick a target. A big black pip gets stamped over every one of their dice — they\'ll misread their hand until the reveal.';
       const targets = gs.players.filter(pl => pl.id !== pid() && pl.diceCount > 0);
-      let selTarget = null, selFp = null;
-      const check = () => { confirmBtn.disabled = !(selTarget && selFp); };
-      content.innerHTML =
-        '<div class="ip-accused-list" id="fp-targets">' +
-        targets.map(pl => `<button class="ip-accused-btn" data-id="${esc(pl.id)}">${esc(pl.name)}</button>`).join('') +
-        '</div>' +
-        '<div style="margin-top:12px"><div class="section-label" style="margin-bottom:6px">Plant this face:</div>' +
-        '<div id="fp-face-picker" class="face-picker-row">' +
-        [1,2,3,4,5,6].map(f => `<button class="face-btn item-face-btn" data-face="${f}">${makeDie(f)}</button>`).join('') +
-        '</div></div>';
-      content.querySelector('#fp-targets').addEventListener('click', e => {
+      content.innerHTML = '<div class="ip-accused-list">' + targets.map(pl =>
+        `<button class="ip-accused-btn" data-id="${esc(pl.id)}">${esc(pl.name)}</button>`
+      ).join('') + '</div>';
+      content.addEventListener('click', e => {
         const btn = e.target.closest('.ip-accused-btn');
         if (!btn) return;
         content.querySelectorAll('.ip-accused-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
-        selTarget = btn.dataset.id;
-        itemPickerPayload.targetId = selTarget;
-        check();
-      });
-      content.querySelector('#fp-face-picker').addEventListener('click', e => {
-        const btn = e.target.closest('.item-face-btn');
-        if (!btn) return;
-        content.querySelectorAll('.item-face-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        selFp = parseInt(btn.dataset.face, 10);
-        itemPickerPayload.face = selFp;
-        check();
+        itemPickerPayload.targetId = btn.dataset.id;
+        setReady();
       });
       break;
     }
@@ -1559,6 +1554,13 @@ function showItemResult({ itemType, targetName, faceValue, faces, face, count },
 }
 
 socket1.on('item_result', d => showItemResult(d, 0));
+
+// Fake Pips: someone stamped pips on my dice. Re-render so the overlay shows.
+function applyFakePips(idx) {
+  if (PS[idx]) PS[idx].pranked = true;
+  if (activeIdx === idx) { dealMyDice(); applyDicePrivacy(); }
+}
+socket1.on('fake_pips_drawn', () => applyFakePips(0));
 
 document.getElementById('btn-item-result-dismiss').addEventListener('click', () => hideEl('item-result-overlay'));
 
