@@ -563,6 +563,20 @@ function initTestPlayer(name) {
     if (activeIdx === idx) { revealSel.clear(); dealMyDice(); applyDicePrivacy(); renderActionUI(); renderItemSection(); }
   });
 
+  // Reset this test player's per-round state on its OWN socket. Server emits
+  // round_start before your_dice on the same socket, so dice/items set by the
+  // following your_dice are never clobbered (unlike resetting via socket1).
+  socket.on('round_start', state => {
+    PS[idx].dice = [];
+    PS[idx].revealedCount = 0;
+    PS[idx].autoLiar = (state.autoLiarPlayerId === PS[idx].id);
+    PS[idx].lockedBid = null;
+    PS[idx].items = []; // repopulated by this socket's your_dice
+    PS[idx].scoutedFace = null;
+    PS[idx].pranked = false;
+    if (activeIdx === idx) renderGame();
+  });
+
   socket.on('item_result', d => showItemResult(d, idx));
 
   socket.on('fake_pips_drawn', () => applyFakePips(idx));
@@ -963,7 +977,9 @@ socket1.on('round_start', state => {
   PS[0].items     = []; // will be set by your_dice
   PS[0].scoutedFace = null;
   PS[0].pranked   = false;
-  PS.slice(1).forEach(ps => { if (ps) { ps.dice = []; ps.revealedCount = 0; ps.autoLiar = (state.autoLiarPlayerId === ps.id); ps.lockedBid = null; ps.items = []; ps.scoutedFace = null; ps.pranked = false; } });
+  // NOTE: test players (PS[1+]) reset their own state in their per-socket
+  // round_start handler — clearing them here races against their your_dice
+  // (delivered on a different socket) and can wipe freshly-dealt dice/items.
   revealSel.clear();
   lbQty = 1; lbFace = 2;
   diceRevealed = false;
