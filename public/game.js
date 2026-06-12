@@ -380,6 +380,12 @@ function renderLobby(state) {
       ? 'Reveal dice with your bid; your other dice reroll'
       : 'Reveal & Reroll is available in Standard mode only';
 
+  const itemsBtn = document.getElementById('btn-items');
+  itemsBtn.dataset.active = state.itemsEnabled ? 'true' : 'false';
+  itemsBtn.classList.toggle('active', !!state.itemsEnabled);
+  itemsBtn.disabled = !iAmLobbyHost;
+  itemsBtn.title = 'Deal one secret power-up to each player per round';
+
   iAmLobbyHost ? hideEl('host-only-hint') : showEl('host-only-hint');
 
   const startBtn = document.getElementById('btn-start');
@@ -440,6 +446,11 @@ document.getElementById('btn-calza').addEventListener('click', function() {
 document.getElementById('btn-reveal-reroll').addEventListener('click', function() {
   const newVal = this.dataset.active !== 'true';
   p().socket.emit('set_reveal_reroll', { value: newVal });
+});
+
+document.getElementById('btn-items').addEventListener('click', function() {
+  const newVal = this.dataset.active !== 'true';
+  p().socket.emit('set_items', { value: newVal });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1319,13 +1330,22 @@ function renderActionUI() {
 function renderItemSection() {
   const myPs = p();
   const item = myPs?.item;
-  const section = document.getElementById('item-section');
-  if (!item || !gs || gs.phase !== 'playing') { hideEl(section); return; }
+  const wrap = document.getElementById('item-header-wrap');
+  const popup = document.getElementById('item-header-popup');
+  const useRow = document.getElementById('item-use-row');
+
+  if (!item || !gs || gs.phase !== 'playing') {
+    hideEl(wrap); hideEl(popup); hideEl(useRow);
+    return;
+  }
   const meta = ITEM_META[item];
-  if (!meta) { hideEl(section); return; }
-  document.getElementById('item-card-icon').textContent = meta.icon;
-  document.getElementById('item-card-name').textContent = meta.name;
-  document.getElementById('item-card-desc').textContent = meta.desc;
+  if (!meta) { hideEl(wrap); hideEl(useRow); return; }
+
+  document.getElementById('item-header-icon').textContent = meta.icon;
+  document.getElementById('item-header-popup-name').textContent = meta.name;
+  document.getElementById('item-header-popup-desc').textContent = meta.desc;
+  showEl(wrap);
+
   const isMyTurn = gs.currentPlayerId === pid();
   let canUse;
   switch (item) {
@@ -1334,8 +1354,10 @@ function renderItemSection() {
     case 'doubledown': canUse = isMyTurn && !gs.firstBidOfRound && !!gs.currentBid && !gs.isInPerson; break;
     default: canUse = isMyTurn && !gs.isInPerson;
   }
-  document.getElementById('btn-use-item').disabled = !canUse;
-  showEl(section);
+  const btn = document.getElementById('btn-use-powerup');
+  btn.textContent = `${meta.icon} Use ${meta.name}`;
+  btn.disabled = !canUse;
+  showEl(useRow);
 }
 
 function openItemPicker(itemType) {
@@ -1471,11 +1493,18 @@ function openItemPicker(itemType) {
   showEl('item-picker-overlay');
 }
 
-document.getElementById('btn-use-item').addEventListener('click', () => {
+document.getElementById('btn-use-powerup').addEventListener('click', () => {
   const item = p()?.item;
   if (!item) return;
   openItemPicker(item);
 });
+
+document.getElementById('item-header-icon').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('item-header-popup').classList.toggle('hidden');
+});
+
+document.addEventListener('click', () => hideEl('item-header-popup'));
 
 document.getElementById('btn-item-cancel').addEventListener('click', () => {
   hideEl('item-picker-overlay');

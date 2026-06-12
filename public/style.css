@@ -1127,16 +1127,33 @@ body.dual-mode .player-chip { cursor: pointer; }
 .btn-kick:hover { background: rgba(239,68,68,.3); border-color: var(--danger); }
 
 /* ── Items ───────────────────────────────────────────────────────────────── */
-#item-section { width: 100%; }
-#item-card {
-  display: flex; align-items: center; gap: 12px;
-  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
-  border-radius: 12px; padding: 10px 14px;
+
+/* Header item icon */
+#item-header-wrap {
+  position: relative; display: flex; align-items: center;
+  padding: 0 10px; border-left: 1px solid var(--border); flex-shrink: 0;
 }
-#item-card-icon { font-size: 1.6rem; flex-shrink: 0; }
-#item-card-info { flex: 1; min-width: 0; }
-#item-card-name { font-size: .88rem; font-weight: 700; }
-#item-card-desc { font-size: .75rem; color: var(--muted); }
+.item-header-icon-btn {
+  background: rgba(245,166,35,.15); border: 1px solid rgba(245,166,35,.4);
+  border-radius: 8px; padding: 4px 8px; font-size: 1.25rem; line-height: 1;
+  cursor: pointer; transition: background .15s;
+  touch-action: manipulation;
+}
+.item-header-icon-btn:hover { background: rgba(245,166,35,.3); }
+
+/* Item description popup */
+#item-header-popup {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--bg-card); border: 1px solid rgba(245,166,35,.5);
+  border-radius: 10px; padding: 10px 14px; min-width: 180px; max-width: 240px;
+  z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  white-space: normal;
+}
+#item-header-popup-name { font-size: .88rem; font-weight: 700; color: var(--gold); margin-bottom: 4px; }
+#item-header-popup-desc { font-size: .78rem; color: var(--muted); }
+
+/* Use Power Up row in game center */
+#item-use-row { width: 100%; }
 .btn-item {
   background: rgba(245,166,35,.15); color: var(--gold);
   border: 1px solid rgba(245,166,35,.4); border-radius: 9px;

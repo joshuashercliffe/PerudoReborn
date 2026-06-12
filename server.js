@@ -75,6 +75,7 @@ function createRoomState() {
     isInPerson: false,
     calzaEnabled: false,
     revealRerollEnabled: false,
+    itemsEnabled: false,
     nextRoundReady: [],
     pendingIPChallenge: null,
     players: [],
@@ -128,6 +129,7 @@ function publicState(room) {
     isInPerson:         room.isInPerson,
     calzaEnabled:       room.calzaEnabled,
     revealRerollEnabled: room.revealRerollEnabled,
+    itemsEnabled:       room.itemsEnabled,
     autoLiarPlayerId:   room.autoLiarPlayerId,
     autoBidPlayerId:    room.autoBidPlayerId
   };
@@ -285,7 +287,7 @@ function startRound(room, roomId) {
     }
   }
 
-  const itemShuffled = room.isInPerson ? [] : [...ITEM_POOL].sort(() => Math.random() - 0.5);
+  const itemShuffled = room.itemsEnabled ? [...ITEM_POOL].sort(() => Math.random() - 0.5) : [];
   room.players.forEach((p, i) => {
     p.revealedDice = []; p.dice = roll(p.diceCount);
     p.item = itemShuffled.length ? itemShuffled[i % itemShuffled.length] : null;
@@ -678,6 +680,16 @@ io.on('connection', socket => {
     if (room.phase !== 'lobby') return;
     if (socket.id !== room.host) return;
     room.calzaEnabled = !!value;
+    io.to(roomId).emit('lobby_update', publicState(room));
+  });
+
+  // ── Toggle Items (one power-up per player per round) ──
+  socket.on('set_items', ({ value }) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'lobby') return;
+    if (socket.id !== room.host) return;
+    room.itemsEnabled = !!value;
     io.to(roomId).emit('lobby_update', publicState(room));
   });
 
