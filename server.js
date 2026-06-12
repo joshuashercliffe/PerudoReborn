@@ -293,7 +293,7 @@ function startRound(room, roomId) {
   room.players.forEach((p, i) => {
     p.revealedDice = []; p.dice = roll(p.diceCount);
     p.item = itemShuffled.length ? itemShuffled[i % itemShuffled.length] : null;
-    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null;
+    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null; p.pranked = false;
   });
 
   io.to(roomId).emit('round_start', publicState(room));
@@ -600,6 +600,7 @@ io.on('connection', socket => {
       state: publicState(room),
       dice: player.dice,
       revealedCount: player.revealedDice?.length ?? 0,
+      pranked: !!player.pranked,
       phase: room.phase
     });
 
@@ -753,7 +754,7 @@ io.on('connection', socket => {
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
     room.players.forEach((p, i) => {
       p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i;
-      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null;
+      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDown = false; p.scoutedFace = null; p.pranked = false;
     });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
@@ -993,13 +994,12 @@ io.on('connection', socket => {
         if (!isCurrent) return;
         const ft = room.players.find(p => p.id === payload.targetId);
         if (!ft || ft.id === socket.id || !ft.dice.length) return;
-        const fpFace = parseInt(payload.face, 10);
-        if (!Number.isInteger(fpFace) || fpFace < 1 || fpFace > 6) return;
-        const dieIdx = Math.floor(Math.random() * ft.dice.length);
-        ft.fakePip = { dieIndex: dieIdx, originalFace: ft.dice[dieIdx], plantedFace: fpFace };
-        ft.dice[dieIdx] = fpFace;
         player.item = null;
-        emit({ targetName: ft.name });
+        ft.pranked = true; // for reconnect re-sync
+        // Cosmetic prank: stamp a big black pip over the victim's own dice so
+        // they misread their hand. Real values are untouched; truth shows at reveal.
+        io.to(ft.id).emit('fake_pips_drawn', { by: player.name });
+        emit(); // public toast names the user, not the victim
         break;
       }
     }

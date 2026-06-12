@@ -443,6 +443,25 @@ body.dual-mode .player-chip { cursor: pointer; }
 }
 .die3-landing { animation: die3Drop 0.6s cubic-bezier(.22,1,.36,1) both; }
 
+/* Fake Pips prank: a big black pip stamped over the centre of each of my dice */
+.die3-wrap.pranked { position: relative; }
+.die3-wrap.pranked::after {
+  content: '';
+  position: absolute; top: 50%; left: 50%;
+  width: 46%; height: 46%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 38% 34%, #2a2a2a 0%, #050505 70%);
+  border-radius: 50%;
+  z-index: 3; pointer-events: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,.6), inset 0 1px 2px rgba(255,255,255,.25);
+  animation: prank-stamp .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes prank-stamp {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(2.2); }
+  60%  { opacity: 1; transform: translate(-50%, -50%) scale(.85); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
 /* ── Action UI ───────────────────────────────────────────────────────── */
 #action-ui {
   background: var(--bg-card); border: 1px solid var(--border);
