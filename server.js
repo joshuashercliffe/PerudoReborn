@@ -877,6 +877,11 @@ io.on('connection', socket => {
     if (!room.calzaEnabled || room.isInPerson || !room.currentBid) return;
     const caller = room.players[room.currentPlayerIndex];
     if (!caller || caller.id !== socket.id) return;
+    // Scout restriction: you can't Calza the face you scouted this round.
+    if (!room.isFaceoff && !room.isPalifico && caller.scoutedFace &&
+        room.currentBid.face === caller.scoutedFace) {
+      return socket.emit('bid_error', { message: `You scouted ${caller.scoutedFace}s — you can't Calza this bid.` });
+    }
     processCalza(caller, room, roomId);
   });
 

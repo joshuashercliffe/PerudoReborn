@@ -1630,13 +1630,15 @@ function refreshBidControls() {
   const v = clientValidate(gs, selQty, selFace);
   const bidBlocked = scoutedFace != null && selFace === scoutedFace;
   const liarBlocked = scoutedFace != null && gs.currentBid && gs.currentBid.face === scoutedFace;
+  // A bid on the scouted face can't be challenged with Liar OR Calza.
+  const callBlocked = liarBlocked;
   document.getElementById('bid-hint-msg').textContent =
     bidBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't bid them this round.`
-    : liarBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't call Liar on this bid.`
+    : callBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't call Liar or Calza on this bid.`
     : (v.ok ? '' : v.why);
   document.getElementById('btn-bid').disabled = !v.ok || bidBlocked;
-  document.getElementById('btn-challenge').disabled = gs.firstBidOfRound || liarBlocked;
-  document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound;
+  document.getElementById('btn-challenge').disabled = gs.firstBidOfRound || callBlocked;
+  document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound || callBlocked;
   document.getElementById('btn-reveal-bid').disabled = !(v.ok && revealSel.size >= 1) || bidBlocked;
 }
 
