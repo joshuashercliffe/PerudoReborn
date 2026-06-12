@@ -304,9 +304,7 @@ function startRound(room, roomId) {
 
   room.players.forEach((p) => {
     p.revealedDice = []; p.dice = roll(p.diceCount);
-    if (!p.items) p.items = [];
-    // Items carry over between rounds; deal one free per round (FIFO cap applies).
-    if (room.itemsEnabled) grantItem(p, randomItem());
+    if (!p.items) p.items = []; // items carry over between rounds; earned via Double Down
     p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false;
   });
 
@@ -779,7 +777,8 @@ io.on('connection', socket => {
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
     room.players.forEach((p, i) => {
       p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i;
-      p.items = []; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false;
+      p.items = room.itemsEnabled ? [randomItem()] : []; // one free power-up at game start only
+      p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false;
     });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
