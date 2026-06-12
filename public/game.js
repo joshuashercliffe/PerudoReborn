@@ -386,7 +386,7 @@ function renderLobby(state) {
   itemsBtn.dataset.active = state.itemsEnabled ? 'true' : 'false';
   itemsBtn.classList.toggle('active', !!state.itemsEnabled);
   itemsBtn.disabled = !iAmLobbyHost;
-  itemsBtn.title = 'Deal one secret power-up to each player per round';
+  itemsBtn.title = 'One power-up at game start; earn more with Double Down bids';
 
   iAmLobbyHost ? hideEl('host-only-hint') : showEl('host-only-hint');
 
