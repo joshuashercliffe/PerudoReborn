@@ -324,6 +324,18 @@
         </div>
       </div>
 
+      <!-- Item card — shown when player holds an item during play -->
+      <div id="item-section" class="hidden">
+        <div id="item-card">
+          <span id="item-card-icon"></span>
+          <div id="item-card-info">
+            <div id="item-card-name"></div>
+            <div id="item-card-desc"></div>
+          </div>
+          <button id="btn-use-item" class="btn btn-item">Use</button>
+        </div>
+      </div>
+
       <!-- Pre-turn actions: Lock Autobid + Lock Autoliar, side by side -->
       <div id="preturn-row">
         <div id="lockbid-section" class="hidden">
@@ -431,6 +443,24 @@
           <button id="btn-ip-conf-confirm" class="btn btn-danger">Confirm</button>
         </div>
       </div>
+    </div>
+
+    <!-- Item use picker -->
+    <div id="item-picker-overlay" class="hidden">
+      <div class="ip-panel">
+        <h3 class="ip-panel-title" id="item-picker-title"></h3>
+        <p class="ip-subtitle" id="item-picker-subtitle"></p>
+        <div id="item-picker-content"></div>
+        <div class="ip-panel-btns">
+          <button id="btn-item-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-item-confirm" class="btn btn-item-use" disabled>Use Item</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Item result (peek / scout) -->
+    <div id="item-result-overlay" class="hidden">
+      <div id="item-result-content"></div>
     </div>
 
     <!-- Autoliar lock confirmation -->

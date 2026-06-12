@@ -55,6 +55,7 @@ const ROOM_WORDS = [
   'ZAP','ZED','ZEN'
 ];
 const ROOM_DIGITS = '23456789';
+const ITEM_POOL   = ['peek','scout','reroll','wild','doubledown','shield','swap','skip','fakepips'];
 
 function generateRoomId() {
   let id;
@@ -108,7 +109,8 @@ function publicState(room) {
     players: room.players.map(p => ({
       id: p.id, name: p.name, diceCount: p.diceCount,
       connected: p.connected, colorIndex: p.colorIndex ?? 0,
-      revealedDice: p.revealedDice ?? []
+      revealedDice: p.revealedDice ?? [],
+      hasItem: !!p.item, shieldActive: !!p.shieldActive, wildActive: !!p.wildActive,
     })),
     currentPlayerIndex: room.currentPlayerIndex,
     currentPlayerId:    cp?.id   ?? null,
@@ -283,10 +285,15 @@ function startRound(room, roomId) {
     }
   }
 
-  room.players.forEach(p => { p.revealedDice = []; p.dice = roll(p.diceCount); });
+  const itemShuffled = room.isInPerson ? [] : [...ITEM_POOL].sort(() => Math.random() - 0.5);
+  room.players.forEach((p, i) => {
+    p.revealedDice = []; p.dice = roll(p.diceCount);
+    p.item = itemShuffled.length ? itemShuffled[i % itemShuffled.length] : null;
+    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.doubleDown = false;
+  });
 
   io.to(roomId).emit('round_start', publicState(room));
-  room.players.forEach(p => { io.to(p.id).emit('your_dice', { dice: p.dice, revealedCount: 0 }); });
+  room.players.forEach(p => { io.to(p.id).emit('your_dice', { dice: p.dice, revealedCount: 0, item: p.item }); });
 }
 
 // ─────────────────────────────────────────
@@ -298,7 +305,10 @@ function startRound(room, roomId) {
 function tallyBid(room, bid) {
   let count = 0;
   const revealedDice = room.players.map(p => {
-    const pd = { id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0 };
+    const pd = {
+      id: p.id, name: p.name, dice: [...p.dice], colorIndex: p.colorIndex ?? 0,
+      fakePip: p.fakePip ?? null, wildActive: p.wildActive ?? false,
+    };
     if (room.isFaceoff) {
       count += p.dice.reduce((s, d) => s + d, 0);
     } else {
@@ -306,6 +316,7 @@ function tallyBid(room, bid) {
         if (room.isPalifico) { if (d === bid.face) count++; }
         else                 { if (d === bid.face || d === 1) count++; }
       });
+      if (p.wildActive) count++; // Wild: one guaranteed die always counts toward any bid
     }
     return pd;
   });
@@ -326,16 +337,24 @@ function processChallenge(challenger, room, roomId) {
   const bid = room.currentBid;
   const { revealedDice, count } = tallyBid(room, bid);
 
-  const bidMet   = count >= bid.quantity;
-  const loser    = bidMet ? challenger : bidder;
-  const rawDelta = (room.isVariable && !room.isFaceoff)
+  const bidMet = count >= bid.quantity;
+  const loser  = bidMet ? challenger : bidder;
+
+  let rawDelta = (room.isVariable && !room.isFaceoff)
     ? (bidMet ? count - bid.quantity + 1 : bid.quantity - count)
     : 1;
-  const diceDelta = Math.min(rawDelta, loser.diceCount);
+
+  const doubleDownActive = !!challenger.doubleDown;
+  if (doubleDownActive) { rawDelta *= 2; challenger.doubleDown = false; }
+
+  let diceDelta = Math.min(rawDelta, loser.diceCount);
+
+  const shieldAbsorbed = !!loser.shieldActive;
+  if (shieldAbsorbed) { diceDelta = 0; loser.shieldActive = false; }
 
   const result = {
     revealedDice, bid, count, bidMet,
-    isPeak, diceDelta,
+    isPeak, diceDelta, doubleDownActive, shieldAbsorbed,
     isPalifico:     room.isPalifico,
     isFaceoff:      room.isFaceoff,
     gameMode:       room.gameMode,
@@ -423,11 +442,15 @@ function processCalza(caller, room, roomId) {
   const { revealedDice, count } = tallyBid(room, bid);
   const exact = count === bid.quantity;
 
+  const shieldAbsorbed = !exact && !!caller.shieldActive;
+  if (shieldAbsorbed) caller.shieldActive = false;
+
   io.to(roomId).emit('calza_called', { callerName: caller.name });
 
   const result = {
     calza: true, exact,
-    revealedDice, bid, count, diceDelta: 1,
+    revealedDice, bid, count, diceDelta: shieldAbsorbed ? 0 : 1,
+    shieldAbsorbed,
     isPalifico: room.isPalifico,
     isFaceoff:  room.isFaceoff,
     gameMode:   room.gameMode,
@@ -457,6 +480,8 @@ function processCalza(caller, room, roomId) {
         cp.diceCount = reverse ? Math.max(1, cp.diceCount - 1) : Math.min(5, cp.diceCount + 1);
         room.currentPlayerIndex = callerIdx;
         if (!reverse && cp.diceCount === 1) room.palificoTriggerPlayer = cp.id;
+      } else if (result.shieldAbsorbed) {
+        room.currentPlayerIndex = callerIdx; // no die change — shield absorbed the loss
       } else {
         cp.diceCount += reverse ? 1 : -1;
         const eliminated = reverse ? cp.diceCount > 5 : cp.diceCount <= 0;
@@ -712,7 +737,10 @@ io.on('connection', socket => {
     if (room.players.length < 2) return socket.emit('start_error', { message: 'Need at least 2 players to start.' });
 
     const startDice = room.gameMode === 'reverse' ? 1 : 5;
-    room.players.forEach((p, i) => { p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i; });
+    room.players.forEach((p, i) => {
+      p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i;
+      p.item = null; p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.doubleDown = false;
+    });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
     room.palificoTriggerPlayer = null;
@@ -816,6 +844,118 @@ io.on('connection', socket => {
     const caller = room.players[room.currentPlayerIndex];
     if (!caller || caller.id !== socket.id) return;
     processCalza(caller, room, roomId);
+  });
+
+  // ── Use item ─────────────────────────
+  socket.on('use_item', (payload) => {
+    const ctx = getRoom(); if (!ctx) return;
+    const { room, roomId } = ctx;
+    if (room.phase !== 'playing') return;
+    const player = room.players.find(pl => pl.id === socket.id);
+    if (!player) return;
+    const { itemType } = payload ?? {};
+    if (!player.item || player.item !== itemType) return;
+    const isCurrent = room.players[room.currentPlayerIndex]?.id === socket.id;
+    const emit = (extra = {}) => io.to(roomId).emit('item_used', { playerId: socket.id, playerName: player.name, itemType, ...extra, gameState: publicState(room) });
+
+    switch (itemType) {
+      case 'peek': {
+        if (!isCurrent) return;
+        const t = room.players.find(p => p.id === payload.targetId);
+        if (!t || t.id === socket.id || !t.dice.length) return;
+        const faceValue = t.dice[Math.floor(Math.random() * t.dice.length)];
+        player.item = null;
+        io.to(socket.id).emit('item_result', { itemType: 'peek', targetName: t.name, faceValue });
+        emit({ targetName: t.name });
+        break;
+      }
+      case 'scout': {
+        if (!isCurrent) return;
+        const face = parseInt(payload.face, 10);
+        if (!Number.isInteger(face) || face < 1 || face > 6) return;
+        let scoutCount = 0;
+        room.players.forEach(p => p.dice.forEach(d => { if (d === face) scoutCount++; }));
+        player.item = null;
+        io.to(socket.id).emit('item_result', { itemType: 'scout', face, count: scoutCount });
+        emit();
+        break;
+      }
+      case 'reroll': {
+        if (!isCurrent) return;
+        const idxs = [...new Set((Array.isArray(payload.indices) ? payload.indices : []).map(Number)
+          .filter(i => Number.isInteger(i) && i >= 0 && i < player.dice.length))].slice(0, 2);
+        if (!idxs.length) return;
+        idxs.forEach(i => { player.dice[i] = roll(1)[0]; });
+        player.item = null;
+        io.to(socket.id).emit('your_dice', { dice: player.dice, revealedCount: player.revealedDice.length });
+        emit();
+        break;
+      }
+      case 'wild': {
+        if (!isCurrent || room.isFaceoff) return;
+        player.wildActive = true;
+        player.item = null;
+        emit();
+        break;
+      }
+      case 'doubledown': {
+        if (!isCurrent || room.firstBidOfRound || !room.currentBid) return;
+        player.doubleDown = true;
+        player.item = null;
+        emit();
+        break;
+      }
+      case 'shield': {
+        player.shieldActive = true;
+        player.item = null;
+        emit();
+        break;
+      }
+      case 'swap': {
+        if (!isCurrent) return;
+        const st = room.players.find(p => p.id === payload.targetId);
+        if (!st || st.id === socket.id) return;
+        const tmpCount = st.diceCount;
+        st.diceCount = player.diceCount;
+        player.diceCount = tmpCount;
+        player.dice = roll(player.diceCount);
+        st.dice = roll(st.diceCount);
+        player.revealedDice = []; st.revealedDice = [];
+        player.item = null;
+        io.to(socket.id).emit('your_dice', { dice: player.dice, revealedCount: 0 });
+        io.to(st.id).emit('your_dice', { dice: st.dice, revealedCount: 0 });
+        emit({ targetName: st.name });
+        break;
+      }
+      case 'skip': {
+        if (!isCurrent) return;
+        player.item = null;
+        room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
+        if (room.autoBidPlayerId === socket.id) room.autoBidPlayerId = null;
+        emit();
+        if (room.autoLiarPlayerId && !room.firstBidOfRound) {
+          const nc = room.players[room.currentPlayerIndex];
+          if (nc?.id === room.autoLiarPlayerId) {
+            room.autoLiarPlayerId = null;
+            setImmediate(() => processChallenge(nc, room, roomId));
+          }
+        }
+        break;
+      }
+      case 'fakepips': {
+        if (!isCurrent) return;
+        const ft = room.players.find(p => p.id === payload.targetId);
+        if (!ft || ft.id === socket.id || !ft.dice.length) return;
+        const fpFace = parseInt(payload.face, 10);
+        if (!Number.isInteger(fpFace) || fpFace < 1 || fpFace > 6) return;
+        const dieIdx = Math.floor(Math.random() * ft.dice.length);
+        ft.fakePip = { dieIndex: dieIdx, originalFace: ft.dice[dieIdx], plantedFace: fpFace };
+        ft.dice[dieIdx] = fpFace;
+        player.item = null;
+        emit({ targetName: ft.name });
+        break;
+      }
+    }
   });
 
   // ── Rage quit ─────────────────────────
