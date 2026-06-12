@@ -618,13 +618,24 @@ function switchPlayer(idx) {
   histCheck.checked = showBidHistory;
   diceCheck.checked = hideDice;
 
+  const puBtn = document.getElementById('btn-show-powerups');
+
   menuBtn.addEventListener('click', e => {
     e.stopPropagation();
+    // Only surface the power-ups guide when items are in play.
+    gs?.itemsEnabled ? puBtn.classList.remove('hidden') : puBtn.classList.add('hidden');
     menuPanel.classList.toggle('hidden');
   });
 
   document.addEventListener('click', () => menuPanel.classList.add('hidden'));
   menuPanel.addEventListener('click', e => e.stopPropagation());
+
+  puBtn.addEventListener('click', () => {
+    menuPanel.classList.add('hidden');
+    renderPowerupsGuide();
+    showEl('powerups-overlay');
+  });
+  document.getElementById('btn-powerups-close').addEventListener('click', () => hideEl('powerups-overlay'));
 
   histCheck.addEventListener('change', () => {
     showBidHistory = histCheck.checked;
@@ -1348,6 +1359,20 @@ function renderActionUI() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Items
 // ─────────────────────────────────────────────────────────────────────────────
+// Reference guide: list every power-up with its description (menu → Power-ups).
+function renderPowerupsGuide() {
+  document.getElementById('powerups-list').innerHTML = Object.values(ITEM_META).map(m =>
+    `<div class="powerup-row">
+      <span class="powerup-icon">${m.icon}</span>
+      <span class="powerup-info"><span class="powerup-name">${m.name}</span><span class="powerup-desc">${esc(m.desc)}</span></span>
+    </div>`
+  ).join('');
+  document.getElementById('powerups-footer').innerHTML =
+    'Each player starts the game with one random power-up (hidden from opponents until used). ' +
+    'Earn more with a <strong>💥 Double Down</strong> bid: stake your bid — if you\'re called Liar and you\'re <strong>wrong you lose 2 dice</strong>, but if you\'re <strong>right you gain a random power-up</strong>. ' +
+    'You can hold up to <strong>2</strong> at a time (earning a 3rd discards the oldest).';
+}
+
 // Can the active player use this item type right now, given game state?
 function canUseItem(type) {
   const isMyTurn = gs.currentPlayerId === pid();

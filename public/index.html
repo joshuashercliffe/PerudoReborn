@@ -256,6 +256,7 @@
             <input type="checkbox" id="toggle-hide-dice">
             <span>Hide my dice</span>
           </label>
+          <button id="btn-show-powerups" class="menu-action-row hidden">🎁 Power-ups guide</button>
           <div class="menu-divider"></div>
           <button id="btn-end-game" class="menu-leave-btn">Leave Game</button>
         </div>
@@ -456,6 +457,16 @@
           <button id="btn-item-cancel" class="btn btn-secondary">Cancel</button>
           <button id="btn-item-confirm" class="btn btn-item-use" disabled>Use Item</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Power-ups reference guide -->
+    <div id="powerups-overlay" class="hidden">
+      <div id="powerups-panel">
+        <h2 id="powerups-title">🎁 Power-ups</h2>
+        <div id="powerups-list"></div>
+        <p id="powerups-footer"></p>
+        <button id="btn-powerups-close" class="btn btn-primary">Close</button>
       </div>
     </div>
 
