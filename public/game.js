@@ -1395,12 +1395,15 @@ function renderPowerupsGuide() {
     'You can hold up to <strong>2</strong> at a time (earning a 3rd discards the oldest).';
 }
 
+// After Swap/Reroll the active player is locked into bidding this turn.
+function myMustBid() { return !!gs?.players?.find(pl => pl.id === pid())?.mustBid; }
+
 // Can the active player use this item type right now, given game state?
 function canUseItem(type) {
   const isMyTurn = gs.currentPlayerId === pid();
   switch (type) {
     case 'shield': return !!gs.currentBid && !gs.isInPerson;
-    case 'skip':   return isMyTurn;
+    case 'skip':   return isMyTurn && !myMustBid();
     default:       return isMyTurn && !gs.isInPerson;
   }
 }
@@ -1693,13 +1696,16 @@ document.getElementById('qty-up').addEventListener('click',   () => { selQty = g
 function refreshBidControls() {
   document.getElementById('qty-val').textContent = selQty;
 
+  const mustBid = myMustBid(); // Swap/Reroll forces a bid — no Liar/Calza this turn
+
   if (gs.isFaceoff) {
     const v = clientValidate(gs, selQty, 0);
-    document.getElementById('bid-hint-msg').textContent = v.ok ? '' : v.why;
+    document.getElementById('bid-hint-msg').textContent =
+      mustBid ? 'You changed the dice — you must make a bid.' : (v.ok ? '' : v.why);
     document.getElementById('btn-bid').disabled = !v.ok;
     document.getElementById('btn-doubledown').disabled = !v.ok;
-    document.getElementById('btn-challenge').disabled = gs.firstBidOfRound;
-    document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound;
+    document.getElementById('btn-challenge').disabled = gs.firstBidOfRound || mustBid;
+    document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound || mustBid;
     document.getElementById('btn-reveal-bid').disabled = !(v.ok && revealSel.size >= 1);
     return;
   }
@@ -1727,13 +1733,14 @@ function refreshBidControls() {
   // A bid on the scouted face can't be challenged with Liar OR Calza.
   const callBlocked = liarBlocked;
   document.getElementById('bid-hint-msg').textContent =
-    bidBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't bid them this round.`
+    mustBid ? 'You changed the dice — you must make a bid this turn.'
+    : bidBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't bid them this round.`
     : callBlocked ? `You scouted ${FACE_NAME[scoutedFace]} — you can't call Liar or Calza on this bid.`
     : (v.ok ? '' : v.why);
   document.getElementById('btn-bid').disabled = !v.ok || bidBlocked;
   document.getElementById('btn-doubledown').disabled = !v.ok || bidBlocked;
-  document.getElementById('btn-challenge').disabled = gs.firstBidOfRound || callBlocked;
-  document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound || callBlocked;
+  document.getElementById('btn-challenge').disabled = gs.firstBidOfRound || callBlocked || mustBid;
+  document.getElementById('btn-calza-action').disabled = gs.firstBidOfRound || callBlocked || mustBid;
   document.getElementById('btn-reveal-bid').disabled = !(v.ok && revealSel.size >= 1) || bidBlocked;
 }
 
