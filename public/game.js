@@ -510,16 +510,22 @@ lobbyList.addEventListener('pointercancel', endDrag);
 // ─────────────────────────────────────────────────────────────────────────────
 // Multi-player test mode: add players + toggle
 // ─────────────────────────────────────────────────────────────────────────────
+const DUMMY_NAMES = [
+  'Botley','Dicey','Bluffbot','Pipsqueak','Cuppy','Tilty','Snake Eyes','Maverick',
+  'Bluffy','Roller','Doubter','Gambit','Fibber','Chancey','Wagerina','Rollbot',
+  'Sir Foldsalot','Calza Claus','Liarbird','Hodor',
+];
+function randomDummyName() {
+  const used  = new Set(PS.map(x => x.name).filter(Boolean));
+  const avail = DUMMY_NAMES.filter(n => !used.has(n));
+  if (avail.length) return avail[Math.floor(Math.random() * avail.length)];
+  let name, i = 2; // pool exhausted — append a number (server also dedupes)
+  do { name = DUMMY_NAMES[Math.floor(Math.random() * DUMMY_NAMES.length)] + ' ' + i++; } while (used.has(name));
+  return name;
+}
+
 document.getElementById('btn-add-p2').addEventListener('click', () => {
-  const input = document.getElementById('p2-name-input');
-  const name  = input.value.trim() || `Player ${PS.length + 1}`;
-  initTestPlayer(name);
-  input.value = '';
-  input.placeholder = `Player ${PS.length + 1} name`;
-  input.focus();
-});
-document.getElementById('p2-name-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btn-add-p2').click();
+  initTestPlayer(randomDummyName());
 });
 
 
