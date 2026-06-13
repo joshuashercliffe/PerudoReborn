@@ -126,6 +126,7 @@ function publicState(room) {
       connected: p.connected, colorIndex: p.colorIndex ?? 0,
       revealedDice: p.revealedDice ?? [],
       itemCount: (p.items?.length || 0), shieldActive: !!p.shieldActive, wildActive: !!p.wildActive,
+      mustBid: !!p.mustBid,
     })),
     currentPlayerIndex: room.currentPlayerIndex,
     currentPlayerId:    cp?.id   ?? null,
@@ -305,7 +306,7 @@ function startRound(room, roomId) {
   room.players.forEach((p) => {
     p.revealedDice = []; p.dice = roll(p.diceCount);
     if (!p.items) p.items = []; // items carry over between rounds; earned via Double Down
-    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false;
+    p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false; p.mustBid = false;
   });
 
   io.to(roomId).emit('round_start', publicState(room));
@@ -778,7 +779,7 @@ io.on('connection', socket => {
     room.players.forEach((p, i) => {
       p.diceCount = startDice; p.dice = []; p.revealedDice = []; p.colorIndex = i;
       p.items = room.itemsEnabled ? [randomItem()] : []; // one free power-up at game start only
-      p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false;
+      p.wildActive = false; p.fakePip = null; p.shieldActive = false; p.shieldArmedAt = null; p.doubleDownBid = false; p.scoutedFace = null; p.pranked = false; p.mustBid = false;
     });
     room.currentPlayerIndex = Math.floor(Math.random() * room.players.length);
     room.roundNumber = 1;
@@ -842,6 +843,7 @@ io.on('connection', socket => {
     // Double Down: stake this bid. If challenged and wrong → lose 2 dice;
     // if challenged and right → earn a random power-up. Requires items on.
     if (doubleDown && room.itemsEnabled) cp.doubleDownBid = true;
+    cp.mustBid = false; // satisfied any forced-bid (from Swap/Reroll)
     if (room.autoBidPlayerId === socket.id) room.autoBidPlayerId = null;
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
 
@@ -891,6 +893,9 @@ io.on('connection', socket => {
     if (room.phase !== 'playing' || room.firstBidOfRound) return;
     const challenger = room.players[room.currentPlayerIndex];
     if (!challenger || challenger.id !== socket.id) return;
+    if (challenger.mustBid) {
+      return socket.emit('bid_error', { message: 'You changed the dice — you must make a bid, not call Liar.' });
+    }
     // Scout restriction: you can't call Liar on the face you scouted this round.
     if (!room.isFaceoff && !room.isPalifico && challenger.scoutedFace &&
         room.currentBid && room.currentBid.face === challenger.scoutedFace) {
@@ -907,6 +912,9 @@ io.on('connection', socket => {
     if (!room.calzaEnabled || room.isInPerson || !room.currentBid) return;
     const caller = room.players[room.currentPlayerIndex];
     if (!caller || caller.id !== socket.id) return;
+    if (caller.mustBid) {
+      return socket.emit('bid_error', { message: 'You changed the dice — you must make a bid, not call Calza.' });
+    }
     // Scout restriction: you can't Calza the face you scouted this round.
     if (!room.isFaceoff && !room.isPalifico && caller.scoutedFace &&
         room.currentBid.face === caller.scoutedFace) {
@@ -960,6 +968,7 @@ io.on('connection', socket => {
         if (!idxs.length) return;
         idxs.forEach(i => { player.dice[i] = roll(1)[0]; });
         removeItem(player, itemType);
+        player.mustBid = true; // changed the dice — must bid this turn, no Liar/Calza
         io.to(socket.id).emit('your_dice', { dice: player.dice, revealedCount: player.revealedDice.length });
         emit();
         break;
@@ -992,13 +1001,14 @@ io.on('connection', socket => {
         st.dice = roll(st.diceCount);
         player.revealedDice = []; st.revealedDice = [];
         removeItem(player, itemType);
+        player.mustBid = true; // changed the dice — must bid this turn, no Liar/Calza
         io.to(socket.id).emit('your_dice', { dice: player.dice, revealedCount: 0 });
         io.to(st.id).emit('your_dice', { dice: st.dice, revealedCount: 0 });
         emit({ targetName: st.name });
         break;
       }
       case 'skip': {
-        if (!isCurrent) return;
+        if (!isCurrent || player.mustBid) return; // can't skip out of a forced bid
         removeItem(player, itemType);
         room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
         if (room.autoBidPlayerId === socket.id) room.autoBidPlayerId = null;
