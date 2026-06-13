@@ -1221,9 +1221,9 @@ body.dual-mode .player-chip { cursor: pointer; }
 .item-chooser-name { font-size: .92rem; font-weight: 800; }
 .item-chooser-desc { font-size: .76rem; color: var(--muted); }
 
-/* Double Down bid button */
-.btn-doubledown { background: #b91c1c; color: #fff; border: 2px solid #fca5a5; }
-.btn-doubledown:hover:not(:disabled) { transform: translateY(-2px); border-color: #fecaca; box-shadow: 0 8px 24px rgba(185,28,28,.5); }
+/* Double Down bid button — green to signal it's a bid (the 💥 sets it apart from Make Bid) */
+.btn-doubledown { background: #15803d; color: #fff; border: 2px solid #4ade80; }
+.btn-doubledown:hover:not(:disabled) { transform: translateY(-2px); border-color: #86efac; box-shadow: 0 8px 24px rgba(21,128,61,.5); }
 
 /* Reveal: earned power-up note */
 .reveal-earned { color: var(--gold); font-weight: 700; }
